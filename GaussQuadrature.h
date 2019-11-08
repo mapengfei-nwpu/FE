@@ -32,13 +32,15 @@ public:
 
 		auto affine_x = [&me](double x, double y) {
 			auto p = me.coordinates;
-			return (p[1][0] - p[0][0]) * x + (p[2][0] - p[0][0]) * y + x;
+			return (p[1][0] - p[0][0]) * x + (p[2][0] - p[0][0]) * y + p[0][0];
 		};
 
 		auto affine_y = [&me](double x, double y) {
 			auto p = me.coordinates;
-			return (p[1][1] - p[0][1]) * x + (p[2][1] - p[0][1]) * y + y;
+			return (p[1][1] - p[0][1]) * x + (p[2][1] - p[0][1]) * y + p[0][1];
 		};
+
+		
 
 		std::array<std::pair<std::array<double, 2>, double>, 4> result;
 		for (std::size_t i = 0; i < 4; ++i) {
@@ -50,17 +52,14 @@ public:
 		}
 		return result;
 	}
+/// these should be static variables.
+	const double gauss_nodes[4][2] =
+	{ { 1.0 / 3.0,  1.0 / 3.0},
+	  { 3.0 / 5.0,  1.0 / 5.0},
+	  { 1.0 / 5.0,  1.0 / 5.0},
+	  { 1.0 / 5.0,  3.0 / 5.0} };
 
-	//
-	static const double gauss_nodes[4][2];
-	static const double gauss_weights[4];
+	const double gauss_weights[4] =
+	{ -27.0 / 96.0, 25.0 / 96.0, 25.0 / 96.0, 25.0 / 96.0 };
 };
 
-const double GaussQuadrature::gauss_nodes[4][2] =
-{ { 1.0 / 3.0,  1.0 / 3.0},
-  { 3.0 / 5.0,  1.0 / 5.0},
-  { 1.0 / 5.0,  1.0 / 5.0},
-  { 1.0 / 5.0,  3.0 / 5.0} };
-
-const double GaussQuadrature::gauss_weights[4] =
-{ -27.0 / 48.0, 25.0 / 48.0, 25.0 / 48.0, 25.0 / 48.0 };
