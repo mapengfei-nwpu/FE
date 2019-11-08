@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 template<std::size_t N, std::size_t M>
 class GeneralElementsCollection {
 public:

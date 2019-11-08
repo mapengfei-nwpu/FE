@@ -1,6 +1,7 @@
 #include <functional>
-#include "Point.h"
 #include <boost/multi_array.hpp>
+
+#include "BasisFunction.h"
 
 std::function<double(double, double)> phi_x;
 auto mod = [](int a, int b) {return a % b;};
@@ -9,10 +10,7 @@ void compute_jacobian_determinants() { ; }
 auto psi = [](int a) {return a; };
 auto psi_derivative_x  = [](int a) {return a; };
 auto psi_derivative_y  = [](int a) {return a; };
-auto psi_derivative_xy = [](int a) {return 0; };
-auto psi_derivative_xy = [](int a) {return 0; };
-auto psi_derivative_xx = [](int a) {return 0; };
-auto psi_derivative_yy = [](int a) {return 0; };
+
 int main() {
 	
 	std::vector<std::array<double, 2>> mesh_nodes(100);
@@ -62,14 +60,6 @@ public:
 	}
 };
 
-
-
-
-
-class MeshElementsCollection :public GeneralElementsCollection<3,4> {
-public:
-	
-};
 
 
 

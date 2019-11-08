@@ -1,6 +1,5 @@
 #include <vector>
-
-
+#include "GaussQuadrature.h"
 /// Compute quadrature rule for triangle.
 ///
 /// *Arguments*
