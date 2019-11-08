@@ -7,9 +7,5 @@ public:
 	/// three points and every point point contains two coordinates.
 	MeshElement(std::vector<std::array<double, 2>>);
 	void print();
-
-
-	
-private:
 	boost::multi_array<double, 2> coordinates;
 };

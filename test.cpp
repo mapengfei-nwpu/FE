@@ -1,6 +1,5 @@
 #include <iostream>
 #include "MeshElementsCollection.h"
-
 int main() {
 	/********** test 1 ************
 	MeshElementsCollection a;
