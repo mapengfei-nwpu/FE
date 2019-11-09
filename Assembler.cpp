@@ -4,10 +4,10 @@
 #include "GaussQuadrature.h"
 #include "BasisFunction.h"
 #include "MeshElement.h"
-class LocalAssembler {
+class Assembler {
 public:
 	/// construct function.
-	LocalAssembler(std::size_t index) {
+	Eigen::MatrixXd localAssembler(std::size_t index) {
 		MeshElementsCollection mc;
 		MeshElement me = mc.get_mesh_element(index);
 
@@ -38,6 +38,7 @@ public:
 						(b.*psi_i_y)(x, y) * (b.*psi_j_y)(x, y);
 				};
 				double sum = 0;
+				a(i, j) = 0;
 
 				/// calculate x_k, y_k, w_k for gauss quadrature.
 				/// a(i,j) = \sum w_k(\psi^{(i)}_x(x_k,y_k)\psi^{(j)}_x(x_k,y_k)
@@ -48,7 +49,26 @@ public:
 				a(i, j) = sum;
 			}
 		}
+		return a;
 	}
+	Eigen::MatrixXd globalAssembler() {
+		MeshElementsCollection mc;
+		std::size_t degree_number = 100;
+		Eigen::MatrixXd A(degree_number,degree_number);
+		for (std::size_t i = 0; i < mc.element_number(); i++)
+		{
+			/// actually this should be finite element.
+			/// when it is P1 element, it dose not matter.
+			std::size_t fe[] = { 1,2,3,4,5,6,7,8,9 };// mc.get_finite_element(i);
+			auto local_A = localAssembler(i);
 
-
+			for (std::size_t j = 0; j < 3/* there should dim here */; j++)
+			{
+				for (std::size_t k = 0; k < 3 /* same as before */; k++)
+				{
+					A(fe[i],fe[j]) = local_A(i, j);
+				}
+			}
+		}
+	}
 };
