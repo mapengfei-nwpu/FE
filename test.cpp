@@ -1,6 +1,7 @@
 #include <iostream>
 #include "MeshElementsCollection.h"
 #include "GaussQuadrature.h"
+#include "BasisFunction.h"
 int main() {
 	/********** test 1 ************
 	MeshElementsCollection a;
@@ -13,8 +14,8 @@ int main() {
 	b.print();
 	GaussQuadrature c;
 	auto d = c.quadrature_weights_nodes(b);
-		
-//≤‚ ‘ x+y;
+
+	//quadrature test
 
 	double sum = 0.0;
 	std::cout << "gauss_nodes" << std::endl;
@@ -29,5 +30,9 @@ int main() {
 	};
 	std::cout << jacobi_det()*sum << std::endl;
 
+	// basis function test
+	BasisFunction f(b);
+	std::cout << f.get_jacobian_determian() << std::endl;
+	std::cout << f.basis_2(b.coordinates[1][0], b.coordinates[1][1]) << std::endl;
 	std::cout << "hello world!" << std::endl;
 }
