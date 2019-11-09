@@ -12,7 +12,9 @@ public:
 	/// return element dimension which is the number of
 	/// nodes every element contains.
 	const std::size_t element_dimension() { return M; }
-
+	
+	/// return the number of element.
+	const std::size_t element_number() { return _T.size(); }
 
 	/// Get a node
 	///
