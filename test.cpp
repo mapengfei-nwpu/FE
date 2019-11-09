@@ -1,4 +1,5 @@
 #include <iostream>
+#include <stdio.h>
 #include "MeshElementsCollection.h"
 #include "GaussQuadrature.h"
 #include "BasisFunction.h"
@@ -9,7 +10,7 @@ int main() {
 	*******************************/
 	///* test 2
 	MeshElementsCollection a;
-	auto b = a.get_mesh_element(3);
+	auto b = a.get_mesh_element(4);
 	a.print();
 	b.print();
 	GaussQuadrature c;
@@ -32,7 +33,8 @@ int main() {
 
 	// basis function test
 	BasisFunction f(b);
+	auto basis_table = f.basis;
 	std::cout << f.get_jacobian_determian() << std::endl;
-	std::cout << f.basis_2(b.coordinates[1][0], b.coordinates[1][1]) << std::endl;
+	std::cout << (f.*basis_table[2]["dy"])(b.coordinates[0][0], b.coordinates[0][1]) << std::endl;
 	std::cout << "hello world!" << std::endl;
 }
