@@ -1,17 +1,21 @@
 #pragma once
 #include <functional>
+#include <map>
 #include "MeshElement.h"
 class BasisFunction {
 public:
+	std::map<std::size_t, std::function<double(double, double)>> binops;
 	BasisFunction(const MeshElement& e) {
 		auto c = e.coordinates;
 		x1 = c[0][0]; y1 = c[0][1];
 		x2 = c[1][0]; y2 = c[1][1];
 		x3 = c[2][0]; y3 = c[2][1];
 		_j = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1);
-
+		binops.insert({ 1, basis_1 });
 
 	}
+
+
 	double get_jacobian_determian() {
 		return _j;
 	}
