@@ -2,7 +2,8 @@
 #include <vector>
 #include <array>
 #include <boost/multi_array.hpp>
-#include "MeshElementsCollection.h"
+#include <memory>
+// #include "MeshElementsCollection.h"
 
 class MeshElement {
 public:
@@ -16,6 +17,6 @@ public:
 	boost::multi_array<double, 2> coordinates;
 
 private:
-	std::shared_ptr<MeshElementsCollection> _m;
+	//std::shared_ptr<MeshElementsCollection> _m;
 
 };
