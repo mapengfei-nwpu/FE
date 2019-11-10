@@ -13,12 +13,12 @@ bool near(double x, double y) {
 		return true;
 	else return false;
 }
-void dirichlet(MeshElementsCollection& mesh, Eigen::MatrixXd& A) {
+void dirichlet(MeshElementsCollection& mesh, Eigen::SparseMatrix<double>& A) {
 	std::size_t I = A.rows();
 	for (size_t i = 0; i < I; i++) {
 		auto p = mesh.get_node(i);
 		if (near(p[0], 0) || near(p[1], 1))
-			A(i,i) = 10000000000000000.0;
+			A.coeffRef(i, i) = 1000000000;
 	}
 }
 
@@ -92,7 +92,10 @@ int main() {
 	//auto A = a.matrixGlobalAssembler();
 	//auto F = a.vectorGlobalAssembler();
 	//dirichlet(mesh, F);
-	Eigen::VectorXd X = A.lu().solve(F);
+	//Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> solver;
+	Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+	solver.compute(A);
+	auto X = solver.solve(F);
 	
 	//std::size_t I = X.rows();
 	//std::size_t J = X.cols();

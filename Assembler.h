@@ -1,5 +1,6 @@
 
 #include <Eigen/Dense>
+#include <Eigen/Sparse>
 #include "MeshElementsCollection.h"
 #include "FiniteElementsCollection.h"
 #include "GaussQuadrature.h"
@@ -59,11 +60,14 @@ public:
 		}
 		return a;
 	}
-	Eigen::MatrixXd matrixGlobalAssembler() {
+	Eigen::SparseMatrix<double> matrixGlobalAssembler() {
 		std::size_t global_dim = functionspace.global_dimension();
 		std::size_t element_number = functionspace.element_number();
 		std::size_t element_dimension = functionspace.element_dimension();
-		Eigen::MatrixXd A = Eigen::MatrixXd::Zero(global_dim, global_dim);
+
+		Eigen::SparseMatrix<double> A_sparse(global_dim, global_dim);         // default is column major
+		A_sparse.reserve(Eigen::VectorXi::Constant(global_dim, 6));
+
 
 		/// iterate over all elements
 		for (std::size_t i = 0; i < element_number; i++)
@@ -73,9 +77,13 @@ public:
 
 			for (std::size_t j = 0; j < element_dimension; j++)
 				for (std::size_t k = 0; k < element_dimension; k++)
-					A(dofmap[j], dofmap[k]) += local_A(j, k);
+				{
+					A_sparse.coeffRef(dofmap[j], dofmap[k]) += local_A(j, k);
+				}
+					
 		}
-		return A;
+		A_sparse.makeCompressed();
+		return A_sparse;
 	}
 
 	Eigen::VectorXd vectorLocalAssembler(std::size_t index) {
