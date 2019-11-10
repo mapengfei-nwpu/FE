@@ -39,7 +39,7 @@ MeshElementsCollection::MeshElementsCollection() {
 	}
 }
 
-MeshElement MeshElementsCollection::get_mesh_element(std::size_t i) {
+MeshElement MeshElementsCollection::get_mesh_element(std::size_t i) const {
 	std::vector<std::array<double,2>> nodes;
 	auto element = get_element(i);
 	for (std::size_t j = 0; j < 3; ++j) {

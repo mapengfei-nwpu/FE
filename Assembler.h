@@ -10,7 +10,7 @@ class Assembler {
 public:
 
 	/// construct function.
-	Assembler(MeshElementsCollection mesh, FiniteElementsCollection functionspace) :
+	Assembler(MeshElementsCollection &mesh, FiniteElementsCollection &functionspace) :
 		mesh(mesh), functionspace(functionspace) {
 		;
 	}

@@ -7,10 +7,10 @@
 class MeshElement {
 public:
 	/// construct MeshElement with coordinates.
-	MeshElement(std::vector<std::array<double, 2>>);
+	MeshElement(const std::vector<std::array<double, 2>> &);
 	
 	/// print coordinates.
-	void print();
+	void print() const;
 
 	/// coordinate of three nodes
 	boost::multi_array<double, 2> coordinates;

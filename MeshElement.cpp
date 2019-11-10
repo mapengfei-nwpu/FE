@@ -1,6 +1,6 @@
 #include "MeshElement.h"
 #include <iostream>
-MeshElement::MeshElement(std::vector<std::array<double, 2>> nodes) {
+MeshElement::MeshElement(const std::vector<std::array<double, 2>>& nodes) {
 	//1. the size of nodes must be three.
 	const std::size_t dof_dim = 3;
 	const std::size_t geo_dim = 2;
@@ -16,7 +16,7 @@ MeshElement::MeshElement(std::vector<std::array<double, 2>> nodes) {
 		}
 	}
 }
-void MeshElement::print() {
+void MeshElement::print() const {
 	std::cout << "Points:" << std::endl;
 	for (std::size_t i = 0; i < 3; ++i) {
 		std::cout << coordinates[i][0] << "," << coordinates[i][1] << std::endl;
