@@ -9,12 +9,20 @@ public:
 	/// axis every node has.
 	const std::size_t geometric_dimension() { return N; }
 
-	/// return element dimension which is the number of
-	/// nodes every element contains.
+	/// return the dimension of element.
+	/// when it is not P1 element, the dimension
+	/// of finite element is higher than
+	/// the dimension of mesh element.
 	const std::size_t element_dimension() { return M; }
 	
-	/// return the number of element.
+	/// return element dimension which is the number of
+	/// nodes every element contain
 	const std::size_t element_number() { return _T.size(); }
+
+	/// for finite element collection, it returns the number
+	/// nodes. for mesh element collection, it returns the 
+	/// total number of degree of freedom.
+	std::size_t global_dimension() { return element_dimension() * element_number(); }
 
 	/// Get a node
 	///
@@ -58,7 +66,6 @@ public:
 		}
 	}
 
-private:
 	/// The collection which contains the coordinates of all points.
 	std::vector<std::array<double, N>> _P;
 
