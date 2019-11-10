@@ -2,8 +2,8 @@
 
 MeshElementsCollection::MeshElementsCollection() {
 
-	const std::size_t nx = 2;
-	const std::size_t ny = 2;
+	const std::size_t nx = 64;
+	const std::size_t ny = 64;
 
 	const double a = 0.0;
 	const double b = 1.0;

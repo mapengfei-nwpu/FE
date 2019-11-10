@@ -22,7 +22,7 @@ public:
 	/// for finite element collection, it returns the number
 	/// nodes. for mesh element collection, it returns the 
 	/// total number of degree of freedom.
-	std::size_t global_dimension() { return element_dimension() * element_number(); }
+	std::size_t global_dimension() { return _P.size(); }
 
 	/// Get a node
 	///

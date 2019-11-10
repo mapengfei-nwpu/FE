@@ -3,11 +3,10 @@
 #include <array>
 #include <boost/multi_array.hpp>
 #include <memory>
-// #include "MeshElementsCollection.h"
 
 class MeshElement {
 public:
-	/// 
+	/// construct MeshElement with coordinates.
 	MeshElement(std::vector<std::array<double, 2>>);
 	
 	/// print coordinates.
@@ -15,8 +14,5 @@ public:
 
 	/// coordinate of three nodes
 	boost::multi_array<double, 2> coordinates;
-
-private:
-	//std::shared_ptr<MeshElementsCollection> _m;
 
 };
