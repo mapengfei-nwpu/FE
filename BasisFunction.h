@@ -1,41 +1,25 @@
 #pragma once
-#include <functional>
-#include <map>
-#include <string>
 #include <vector>
+#include <iostream>
+#include <Eigen/Dense>
 #include "MeshElement.h"
-
-class BasisFunction;
-typedef double(BasisFunction::* basis_type)(double, double);
+#define M 3
 
 
 class BasisFunction {
 public:
-	std::vector<std::map<std::string, basis_type>> basis;
 	BasisFunction(const MeshElement& e) {
-		auto c = e.coordinates;
-		x1 = c[0][0]; y1 = c[0][1];
-		x2 = c[1][0]; y2 = c[1][1];
-		x3 = c[2][0]; y3 = c[2][1];
-		_j = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1);
-		/// this part is ugly.
-		/// "bind" can be used to replace these lines.
-		std::map<std::string, basis_type> basis_map; 
-		basis_map.erase(basis_map.begin(), basis_map.end());
-		basis_map["original"] = &BasisFunction::basis_1;
-		basis_map["dx"]		  = &BasisFunction::basis_1_dx;
-		basis_map["dy"]       = &BasisFunction::basis_1_dy;
-		basis.push_back(basis_map);
-		basis_map.erase(basis_map.begin(), basis_map.end());
-		basis_map["original"] = &BasisFunction::basis_2;
-		basis_map["dx"]       = &BasisFunction::basis_2_dx;
-		basis_map["dy"]       = &BasisFunction::basis_2_dy;
-		basis.push_back(basis_map);
-		basis_map.erase(basis_map.begin(), basis_map.end());
-		basis_map["original"] = &BasisFunction::basis_3;
-		basis_map["dx"]       = &BasisFunction::basis_3_dx;
-		basis_map["dy"]       = &BasisFunction::basis_3_dy;
-		basis.push_back(basis_map);
+		if (e.coordinates.size() != M) std::cout << "wrong" << std::endl;
+		std::array<std::array<double, 2>, M> coord;
+		for (size_t i = 0; i < M; i++)
+			for (size_t j = 0; j < 2; j++)
+			{
+				coord[i][j] = e.coordinates[i][j];
+			}
+		kappa_calculation(coord);
+		_j = (coord[1][0] - coord[0][0]) * (coord[2][1] - coord[0][1])
+			- (coord[2][0] - coord[0][0]) * (coord[1][1] - coord[0][1]);
+		///_j = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1);
 	}
 
 
@@ -43,50 +27,52 @@ public:
 		return _j;
 	}
 
-	double basis_1(double x, double y) {
-		return -x_reference(x, y) - y_reference(x, y) + 1;
+	double psi(double x, double y, size_t i) {
+		if (i < 0 || i >= M) {
+			std::cout << "wrong" << std::endl; return 1.0;
+		}
+		return kappa[i][0] * x + kappa[i][1] * y + kappa[i][2];
 	}
-	double basis_1_dx(double x, double y) {
-		return -(y3 - y1) / _j - (y1 - y2) / _j;
+	double psi_x(double x, double y, size_t i) {
+		return kappa[i][0];
 	}
-	double basis_1_dy(double x, double y) {
-		return -(x1 - x3) / _j - (x2 - x1) / _j;
+	double psi_y(double x, double y, size_t i) {
+		return kappa[i][1];
 	}
+	void kappa_calculation(std::array<std::array<double, 2>, M> coordinates) {
 
-	double basis_2(double x, double y) {
-		return x_reference(x, y);
-	}
-	double basis_2_dx(double x, double y) {
-		return (y3 - y1) / _j;
-	}
-	double basis_2_dy(double x, double y) {
-		return (x1 - x3) / _j;
-	}
+		/// set matrix entries.
+		Eigen::MatrixXd A(M, M);
+		for (size_t j = 0; j < M; j++)
+		{
+			auto c = coordinates[j];
+			A(j, 0) = c[0];
+			A(j, 1) = c[1];
+			A(j, 2) = 1.0;
+		}		
 
-	double basis_3(double x, double y) {
-		auto z = y_reference(x, y);
-		return z;
+		/// set vector entries and solve parameters.
+		Eigen::VectorXd e(M);
+		for (size_t i = 0; i < M; ++i)
+		{
+			e.setZero();
+			e(i) = 1.0;
+			Eigen::VectorXd x = A.lu().solve(e);
+			/// std::cout << A << std::endl;
+			/// std::cout << e << std::endl;
+			/// std::cout << x << std::endl;
+			/// copy result to parameters matrix.
+			for (size_t j = 0; j < M; j++)
+			{
+				auto temp = x(j);
+				kappa[i][j] = x(j);
+			}
+		}
 	}
-	double basis_3_dx(double x, double y) {
-		return (y1 - y2) / _j;
-	}
-	double basis_3_dy(double x, double y) {
-		return (x2 - x1) / _j;
-	}
-
 
 private:
-
-	// the determinant of jacobian matrix.
+	/// parameters matrix of basis functions.
+	double kappa[M][M];
+	/// the determinant of jacobian matrix.
 	double _j;
-	// coordinates
-	double x1, x2, x3, y1, y2, y3;
-
-	// reference coordinates.
-	double x_reference(double x, double y) {
-		return ((y3 - y1) * (x - x1) - (x3 - x1) * (y - y1)) / _j;
-	};
-	double y_reference(double x, double y) {
-		return (-(y2 - y1) * (x - x1) + (x2 - x1) * (y - y1)) / _j;
-	};
 };

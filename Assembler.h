@@ -1,6 +1,7 @@
 
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
+#include <functional>
 #include "MeshElementsCollection.h"
 #include "FiniteElementsCollection.h"
 #include "GaussQuadrature.h"
@@ -9,8 +10,8 @@
 class Assembler {
 public:
 
-	/// construct function.
-	Assembler(MeshElementsCollection &mesh, FiniteElementsCollection &functionspace) :
+	/// construct function. assign the two variables.
+	Assembler(const MeshElementsCollection& mesh, const FiniteElementsCollection& functionspace) :
 		mesh(mesh), functionspace(functionspace) {
 		;
 	}
@@ -18,44 +19,38 @@ public:
 
 	Eigen::MatrixXd matrixLocalAssembler(std::size_t index) {
 
+		/// get the mesh element object.
 		MeshElement mesh_element = mesh.get_mesh_element(index);
 
+		/// get the quadrature object.
 		GaussQuadrature quadrature;
 		auto quadrature_coefficient = quadrature.quadrature_weights_nodes(mesh_element);
 
+		/// get the basis function object.
 		BasisFunction b(mesh_element);
 		std::size_t local_dim = functionspace.element_dimension();
 
-		Eigen::MatrixXd a(local_dim, local_dim);
-
-		/// I want to wrap basis functions into an array of "function object"
-		/// Then, we can use for to loop over.
+		/// construct local stiffness matrix.
 		/// a(i,j) = \int\psi^{(i)}_x\psi^{(j)}_x + \psi^{(i)}_y\psi^{(j)}_ydxdy
-		auto basis = b.basis;
+		Eigen::MatrixXd a(local_dim, local_dim);
 		auto jacob = std::abs(b.get_jacobian_determian());
 		for (std::size_t i = 0; i < local_dim; ++i) {
-			auto psi_i_x = basis[i]["dx"];
-			auto psi_i_y = basis[i]["dy"];
-			auto psi_i = basis[i]["original"];
 			for (std::size_t j = 0; j < local_dim; ++j) {
-				auto psi_j_x = basis[j]["dx"];
-				auto psi_j_y = basis[j]["dy"];
-				auto psi_j = basis[j]["original"];
-				/// construct a lambda function to be integralled.
+				/// construct a lambda function to be integeralled.
 				auto f = [&](double x, double y) {
-					return - (b.*psi_i_x)(x, y) * (b.*psi_j_x)(x, y) 
-						- (b.*psi_i_y)(x, y) * (b.*psi_j_y)(x, y) 
-						+ 25.0*(b.*psi_i)(x,y)*(b.*psi_j)(x,y);
+					return -b.psi_x(x, y, i) * b.psi_x(x, y, j)
+						- b.psi_y(x, y, i) * b.psi_y(x, y, j)
+						+ 25.0 * b.psi(x, y, i) * b.psi(x, y, j);
 				};
 				double sum = 0;
-				a(i, j) = 0;
 				/// calculate x_k, y_k, w_k for gauss quadrature.
 				/// a(i,j) = \sum w_k(\psi^{(i)}_x(x_k,y_k)\psi^{(j)}_x(x_k,y_k)
 				///        + \psi^{(i)}_y(x_k,y_k)\psi^{(j)}_y(x_k,y_k))
 				for (std::size_t k = 0; k < quadrature_coefficient.size(); ++k) {
+					/// std::cout << f(quadrature_coefficient[k].first[0], quadrature_coefficient[k].first[1]) << std::endl;
 					sum += quadrature_coefficient[k].second * f(quadrature_coefficient[k].first[0], quadrature_coefficient[k].first[1]);
 				}
-				a(i, j) = jacob*sum;
+				a(i, j) = jacob * sum;
 			}
 		}
 		return a;
@@ -80,7 +75,7 @@ public:
 				{
 					A_sparse.coeffRef(dofmap[j], dofmap[k]) += local_A(j, k);
 				}
-					
+
 		}
 		A_sparse.makeCompressed();
 		return A_sparse;
@@ -101,14 +96,11 @@ public:
 		/// I want to wrap basis functions into an array of "function object"
 		/// Then, we can use for to loop over.
 		/// a(i,j) = \int\psi^{(i)}_x\psi^{(j)}_x + \psi^{(i)}_y\psi^{(j)}_ydxdy
-		auto basis = b.basis;
 		auto jacob = std::abs(b.get_jacobian_determian());
 		for (std::size_t i = 0; i < local_dim; ++i) {
-			auto psi_i = basis[i]["original"];
-
 			/// construct a lambda function to be integralled.
 			auto f = [&](double x, double y) {
-				return (b.*psi_i)(x, y) * source(x, y);
+				return b.psi(x, y, i) * source(x, y);
 			};
 			double sum = 0;
 			/// calculate x_k, y_k, w_k for gauss quadrature.
@@ -116,7 +108,7 @@ public:
 				sum += quadrature_coefficient[k].second * f(quadrature_coefficient[k].first[0], quadrature_coefficient[k].first[1]);
 			}
 			rhs(i) = (jacob * sum);
-			
+
 		}
 
 		return rhs;

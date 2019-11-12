@@ -35,7 +35,7 @@ int main() {
 	for (size_t i = 0; i < I; i++) {
 		for (size_t j = 0; j < J; j++)
 		{
-			//std::cout << A(i, j) << "  ";
+			//std::cout << A.coeffRef(i, j) << "  ";
 		}
 		printf("\n");
 	}
