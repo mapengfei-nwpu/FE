@@ -9,7 +9,6 @@ MeshElement::MeshElement(const std::vector<std::array<double, 2>>& nodes) {
 		boost::multi_array<double, 2>::extent_gen extents;
 		coordinates.resize(extents[dof_dim][geo_dim]);
 	}
-	auto a = coordinates[0];
 	for (std::size_t i = 0; i < 3; i++) {
 		for (std::size_t j = 0; j < 2; j++) {
 			coordinates[i][j] = nodes[i][j]; 

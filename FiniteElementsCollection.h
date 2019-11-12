@@ -25,7 +25,7 @@ public:
 		if (order != 2) {
 			std::cout << "Finite element order must be two." << std::endl;
 		}
-		mesh.print();
+		/// mesh.print();
 		/// generate index for midpoints on every edge.
 		size_t mesh_element_size = mesh._T[0].size();
 		size_t mesh_point_number = mesh._P.size();
@@ -48,7 +48,7 @@ public:
 		for (auto i = midpoint.begin(); i != midpoint.end(); ++i) {
 			auto secondpoint = i->second;
 			for (auto j = secondpoint.begin(); j != secondpoint.end(); ++j) {
-				std::cout << i->first << "  " << j->first << " " << j->second << std::endl;
+				/// std::cout << i->first << "  " << j->first << " " << j->second << std::endl;
 			}
 		}
 		/// generate new _T which is the tabulation of finite elements.
@@ -80,7 +80,15 @@ public:
 				_P[j->second][1] = (_P[i->first][1] + _P[j->first][1]) / 2.0;
 			}
 		}
-		print();
+	}
+	FiniteElement get_finite_element(size_t i) const {
+		std::vector<std::array<double, 2>> nodes;
+		auto element = get_element(i);
+		for (std::size_t j = 0; j < 6; ++j) {
+			nodes.push_back(get_node(element[j]));
+		}
+		FiniteElement mesh_element(nodes);
+		return mesh_element;
 	}
 
 };

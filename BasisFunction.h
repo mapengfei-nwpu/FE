@@ -3,12 +3,13 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include "MeshElement.h"
+#include "FiniteElement.h"
 #define M 6
 
 
 class BasisFunction {
 public:
-	BasisFunction(const MeshElement& e) {
+	BasisFunction(const FiniteElement& e) {
 		if (e.coordinates.size() != M) std::cout << "wrong" << std::endl;
 		std::array<std::array<double, 2>, M> coord;
 		for (size_t i = 0; i < M; i++)
@@ -76,6 +77,18 @@ public:
 				kappa[i][j] = x(j);
 			}
 		}
+
+		/// output parameter matrix.
+		/*for (size_t i = 0; i < M; i++)
+		{
+			for (size_t j = 0; j < M; j++)
+			{
+				std::cout << kappa[i][j] << "   ";
+			}
+			std::cout << std::endl;
+
+		}*/
+
 	}
 
 private:

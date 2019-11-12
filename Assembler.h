@@ -7,6 +7,7 @@
 #include "GaussQuadrature.h"
 #include "BasisFunction.h"
 #include "MeshElement.h"
+#include "FiniteElement.h"
 class Assembler {
 public:
 
@@ -16,18 +17,19 @@ public:
 		;
 	}
 
-
+	/// generate local stiffness matrix on local triangle 
 	Eigen::MatrixXd matrixLocalAssembler(std::size_t index) {
 
-		/// get the mesh element object.
-		MeshElement mesh_element = mesh.get_mesh_element(index);
+		/// get the mesh element and finite element.
+		MeshElement   mesh_element   = mesh.get_mesh_element(index);
+		FiniteElement finite_element = functionspace.get_finite_element(index);
 
 		/// get the quadrature object.
 		GaussQuadrature quadrature;
 		auto quadrature_coefficient = quadrature.quadrature_weights_nodes(mesh_element);
 
 		/// get the basis function object.
-		BasisFunction b(mesh_element);
+		BasisFunction b(finite_element);
 		std::size_t local_dim = functionspace.element_dimension();
 
 		/// construct local stiffness matrix.
@@ -53,6 +55,7 @@ public:
 				a(i, j) = jacob * sum;
 			}
 		}
+		///std::cout << a << std::endl;
 		return a;
 	}
 	Eigen::SparseMatrix<double> matrixGlobalAssembler() {
@@ -84,11 +87,12 @@ public:
 	Eigen::VectorXd vectorLocalAssembler(std::size_t index) {
 
 		MeshElement mesh_element = mesh.get_mesh_element(index);
+		FiniteElement finite_element = functionspace.get_finite_element(index);
 
 		GaussQuadrature quadrature;
 		auto quadrature_coefficient = quadrature.quadrature_weights_nodes(mesh_element);
 
-		BasisFunction b(mesh_element);
+		BasisFunction b(finite_element);
 		std::size_t local_dim = functionspace.element_dimension();
 
 		Eigen::VectorXd rhs(local_dim);
