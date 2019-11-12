@@ -62,7 +62,11 @@ public:
 		}
 		std::cout << "Elements:" << std::endl;
 		for (std::size_t i = 0; i < _T.size(); ++i) {
-			std::cout << _T[i][0] << "," << _T[i][1] << "," << _T[i][2] << std::endl;
+			for (size_t j = 0; j < element_dimension(); j++)
+			{
+				std::cout << _T[i][j] << "," ;
+			}
+			std::cout << std::endl;
 		}
 	}
 
