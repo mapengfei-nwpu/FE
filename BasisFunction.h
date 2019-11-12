@@ -1,10 +1,11 @@
 #pragma once
 #include <functional>
+#include <Eigen/Dense>
 #include <map>
 #include <string>
 #include <vector>
 #include "MeshElement.h"
-
+#define M 6
 class BasisFunction;
 typedef double(BasisFunction::* basis_type)(double, double);
 
@@ -18,24 +19,10 @@ public:
 		x2 = c[1][0]; y2 = c[1][1];
 		x3 = c[2][0]; y3 = c[2][1];
 		_j = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1);
-		/// this part is ugly.
-		/// "bind" can be used to replace these lines.
-		std::map<std::string, basis_type> basis_map; 
-		basis_map.erase(basis_map.begin(), basis_map.end());
-		basis_map["original"] = &BasisFunction::basis_1;
-		basis_map["dx"]		  = &BasisFunction::basis_1_dx;
-		basis_map["dy"]       = &BasisFunction::basis_1_dy;
-		basis.push_back(basis_map);
-		basis_map.erase(basis_map.begin(), basis_map.end());
-		basis_map["original"] = &BasisFunction::basis_2;
-		basis_map["dx"]       = &BasisFunction::basis_2_dx;
-		basis_map["dy"]       = &BasisFunction::basis_2_dy;
-		basis.push_back(basis_map);
-		basis_map.erase(basis_map.begin(), basis_map.end());
-		basis_map["original"] = &BasisFunction::basis_3;
-		basis_map["dx"]       = &BasisFunction::basis_3_dx;
-		basis_map["dy"]       = &BasisFunction::basis_3_dy;
-		basis.push_back(basis_map);
+
+		double A[M][M];
+		double e[M];
+		/// copy to kappa. 
 	}
 
 
@@ -43,40 +30,37 @@ public:
 		return _j;
 	}
 
-	double basis_1(double x, double y) {
-		return -x_reference(x, y) - y_reference(x, y) + 1;
+	double psi(double x, double y, size_t i) {
+		if (i < 0 || i >= M) {
+			std::cout << "wrong" << std::endl; return 1.0;
+		}
+		return kappa[i][0] * x * x + kappa[i][1] * y * y + kappa[i][2] * x * y
+			+ kappa[i][3] * x + kappa[i][4] * y + kappa[i][5];
 	}
-	double basis_1_dx(double x, double y) {
-		return -(y3 - y1) / _j - (y1 - y2) / _j;
+	double psi_x(double x, double y, size_t i) {
+		return kappa[i][0] * x * 2.0 + kappa[i][2] * y + kappa[i][3];
 	}
-	double basis_1_dy(double x, double y) {
-		return -(x1 - x3) / _j - (x2 - x1) / _j;
+	double psi_y(double x, double y, size_t i) {
+		return kappa[i][1] * y * 2.0 + kappa[i][2] * x + kappa[i][4];
 	}
-
-	double basis_2(double x, double y) {
-		return x_reference(x, y);
+	void kappa_calculation(std::array<std::array<double,2>,3> coordinates,size_t i) {
+		coordinates[0][0];
+		Eigen::MatrixXd A(3, 3);
+		Eigen::VectorXd e = Eigen::VectorXd::Zero(3);
+		e(i) = 1.0;
+		for (size_t j = 0; j < 3; ++j)
+		{
+			auto c = coordinates[j];
+			A(j, 0) = c[0] * c[0];
+			A(j, 1) = c[1] * c[1];
+			A(j, 1) = c[1] * c[1];
+		}
 	}
-	double basis_2_dx(double x, double y) {
-		return (y3 - y1) / _j;
-	}
-	double basis_2_dy(double x, double y) {
-		return (x1 - x3) / _j;
-	}
-
-	double basis_3(double x, double y) {
-		auto z = y_reference(x, y);
-		return z;
-	}
-	double basis_3_dx(double x, double y) {
-		return (y1 - y2) / _j;
-	}
-	double basis_3_dy(double x, double y) {
-		return (x2 - x1) / _j;
-	}
-
 
 private:
 
+
+	double kappa[M][M];
 	// the determinant of jacobian matrix.
 	double _j;
 	// coordinates
