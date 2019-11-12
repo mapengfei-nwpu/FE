@@ -3,7 +3,7 @@
 #include <iostream>
 #include <Eigen/Dense>
 #include "MeshElement.h"
-#define M 3
+#define M 6
 
 
 class BasisFunction {
@@ -17,9 +17,11 @@ public:
 				coord[i][j] = e.coordinates[i][j];
 			}
 		kappa_calculation(coord);
-		_j = (coord[1][0] - coord[0][0]) * (coord[2][1] - coord[0][1])
-			- (coord[2][0] - coord[0][0]) * (coord[1][1] - coord[0][1]);
-		///_j = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1);
+		/// _j = (coord[1][0] - coord[0][0]) * (coord[2][1] - coord[0][1])
+		///	- (coord[2][0] - coord[0][0]) * (coord[1][1] - coord[0][1]);
+		_j = (coord[2][0] - coord[0][0]) * (coord[4][1] - coord[0][1])
+			- (coord[4][0] - coord[0][0]) * (coord[2][1] - coord[0][1]);
+
 	}
 
 
@@ -31,13 +33,16 @@ public:
 		if (i < 0 || i >= M) {
 			std::cout << "wrong" << std::endl; return 1.0;
 		}
-		return kappa[i][0] * x + kappa[i][1] * y + kappa[i][2];
+		// return kappa[i][0] * x + kappa[i][1] * y + kappa[i][2];
+		return kappa[i][0] * x * x + kappa[i][1] * y * y + kappa[i][2] * x * y
+			+ kappa[i][3] * x + kappa[i][4] * y + kappa[i][5];
 	}
 	double psi_x(double x, double y, size_t i) {
-		return kappa[i][0];
+		// return kappa[i][0];
+		return kappa[i][0] * x * 2.0 + kappa[i][2] * y + kappa[i][3];
 	}
 	double psi_y(double x, double y, size_t i) {
-		return kappa[i][1];
+		return kappa[i][1] * y * 2.0 + kappa[i][2] * x + kappa[i][4];
 	}
 	void kappa_calculation(std::array<std::array<double, 2>, M> coordinates) {
 
@@ -46,10 +51,13 @@ public:
 		for (size_t j = 0; j < M; j++)
 		{
 			auto c = coordinates[j];
-			A(j, 0) = c[0];
-			A(j, 1) = c[1];
-			A(j, 2) = 1.0;
-		}		
+			A(j, 0) = c[0] * c[0];
+			A(j, 1) = c[1] * c[1];
+			A(j, 2) = c[0] * c[1];
+			A(j, 3) = c[0];
+			A(j, 4) = c[1];
+			A(j, 5) = 1.0;
+		}
 
 		/// set vector entries and solve parameters.
 		Eigen::VectorXd e(M);
