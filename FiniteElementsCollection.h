@@ -40,7 +40,6 @@ public:
 			for (size_t j = 1; j < mesh_element_size; j++)
 			{
 				Edge edge(mesh._T[i][j - 1], mesh._T[i][j]);
-
 				if (midpoint[edge.start][edge.end] == 0) {
 					midpoint[edge.start][edge.end] = finite_point_number++;
 				}
