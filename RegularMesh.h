@@ -1,18 +1,26 @@
-#pragma once
+#include <vector>
+#include <stdio.h>
+
 #include <dolfin.h>
 
-dolfin::Mesh mesh;
+#include <pybind11/pybind11.h>
+#include <pybind11/eigen.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h> // which can return an object of class vector.
+#include <pybind11/stl_bind.h>
+PYBIND11_MAKE_OPAQUE(std::vector<double>);
+namespace py = pybind11;
 
 class RegularMesh {
 public:
-	RegularMesh(std::shared_ptr<const dolfin::Mesh> mesh): 
-		_mesh(mesh), _mpi_comm(mesh->mpi_comm()) {
+	RegularMesh(std::shared_ptr<const dolfin::Mesh> mesh) :
+		_mesh(mesh)/*, _mpi_comm(mesh->mpi_comm())*/ {
 		;
 	}
 	double x0, x1, y0, y1;
 	size_t nx, ny;
 	void seperate_mode(std::vector<dolfin::Point> points, std::vector<size_t> dims) {
-		
+
 		nx = dims[0];
 		ny = dims[0];
 
@@ -39,15 +47,19 @@ public:
 		for (dolfin::CellIterator e(*_mesh); !e.end(); ++e) {
 			std::array<size_t, 3> single_map;
 			auto center = e->midpoint();
-			single_map[0] = _mpi_comm.rank();
+			single_map[0] = dolfin::MPI::rank(_mesh->mpi_comm());
 			single_map[1] = hash(center);
 			single_map[2] = e->global_index();
 			local_map.push_back(single_map);
+			std::cout << center << std::endl;
+			std::cout << "mpi rank:" << single_map[0] << std::endl;
+			std::cout << "hash:" << single_map[1] << std::endl;
+			std::cout << "index:" << single_map[2] << std::endl;
 		}
 		auto num_cell_global = _mesh->num_entities_global(2);
 		global_map.resize(num_cell_global);
-		std::vector<std::vector<std::array<size_t,3>>> mpi_collect;
-		///dolfin::MPI::all_to_all()
+		std::vector<std::vector<std::array<size_t, 3>>> mpi_collect;
+		dolfin::MPI::all_to_all(_mesh->mpi_comm(), mpi_collect, local_map);
 		for (auto iter = mpi_collect.cbegin(); iter != mpi_collect.cend(); iter++) {
 			for (auto jter = iter->begin(); jter != iter->cend(); jter++) {
 				auto single_map = *jter;
@@ -56,15 +68,27 @@ public:
 			}
 		}
 	}
-
+	std::array<size_t, 2> map(size_t i) {
+		return global_map[i];
+	}
 	// The map of global index to hash index for cells.
 	std::vector<std::array<size_t, 2>> global_map;
 
 private:
 	// MPI communicator
-	dolfin::MPI::Comm _mpi_comm;
+	// dolfin::MPI::Comm _mpi_comm;
 
 	// The mesh
 	std::shared_ptr<const dolfin::Mesh> _mesh;
 
 };
+
+PYBIND11_MODULE(SIGNATURE, m)
+{
+	py::class_<RegularMesh>(m, "RegularMesh")
+		.def(py::init<std::shared_ptr<const dolfin::Mesh>>())
+		.def("index_mesh", &RegularMesh::index_mesh)
+		.def("map", &RegularMesh::map)
+		.def("hash", &RegularMesh::hash)
+		.def("seperate_mode", &RegularMesh::seperate_mode);
+}
