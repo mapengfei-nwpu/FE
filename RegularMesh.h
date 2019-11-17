@@ -43,28 +43,27 @@ public:
 
 	void index_mesh() {
 		// The local map local to global
-		std::vector<std::array<size_t, 3>> local_map;
+		std::vector<size_t> local_map;
 		for (dolfin::CellIterator e(*_mesh); !e.end(); ++e) {
-			std::array<size_t, 3> single_map;
 			auto center = e->midpoint();
-			single_map[0] = dolfin::MPI::rank(_mesh->mpi_comm());
-			single_map[1] = hash(center);
-			single_map[2] = e->global_index();
-			local_map.push_back(single_map);
-			std::cout << center << std::endl;
-			std::cout << "mpi rank:" << single_map[0] << std::endl;
-			std::cout << "hash:" << single_map[1] << std::endl;
-			std::cout << "index:" << single_map[2] << std::endl;
+			local_map.push_back(e->global_index());
+			local_map.push_back(dolfin::MPI::rank(_mesh->mpi_comm()));
+			local_map.push_back(hash(center));
 		}
+		// send local map to every peocess.
+		std::vector<std::vector<size_t>> mpi_collect(dolfin::MPI::size(_mesh->mpi_comm()));
+		dolfin::MPI::all_gather(_mesh->mpi_comm(), local_map, mpi_collect);
+		// alloc memory for global map.
 		auto num_cell_global = _mesh->num_entities_global(2);
 		global_map.resize(num_cell_global);
-		std::vector<std::vector<std::array<size_t, 3>>> mpi_collect;
-		dolfin::MPI::all_to_all(_mesh->mpi_comm(), mpi_collect, local_map);
 		for (auto iter = mpi_collect.cbegin(); iter != mpi_collect.cend(); iter++) {
-			for (auto jter = iter->begin(); jter != iter->cend(); jter++) {
-				auto single_map = *jter;
-				global_map[single_map[2]][0] = single_map[0];
-				global_map[single_map[2]][1] = single_map[1];
+			for (auto jter = iter->begin(); jter != iter->cend();) {
+				size_t cell_index = *jter;
+				jter++;
+				global_map[cell_index][0] = *jter; /// mpi_rank;size_t
+				jter++;
+				global_map[cell_index][1] = *jter; /// cell hash;
+				jter++;
 			}
 		}
 	}
