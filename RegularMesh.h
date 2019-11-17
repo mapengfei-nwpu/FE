@@ -82,6 +82,58 @@ private:
 
 };
 
+
+class DeltaInterplation {
+	/// collect all body vectors on every processes and 
+	/// assign them to a function.
+	void fun0(dolfin::Function& u, std::vector<double>& body) {
+		/// TODO : all reduce body.
+		/// dolfin::MPI::all_reduce(body)
+		auto size = u.vector()->local_size();
+		auto start = u.vector()->local_range().first;
+		std::vector<double> values(size);
+		for (size_t i = 0; i < size; ++i)
+			values[i] = body[i + start];
+		u.vector()->set_local(values);
+	}
+	/// distribute v to vector body on every process.
+	void fun1(dolfin::Function& v, std::vector<double>& body.boost::multi_array<double, 2> & body_coordinates) {
+
+		/// there is no need to iterate all mesh.
+		auto mesh = v.function_space()->mesh();
+		auto dofmap = v.function_space()->dofmap();
+
+		/// TODO : return the reference of the global_map.
+		/// std::vector<std::array<size_t,2>> get_global_map(); 
+		for (size_t i = 0; i < body.size(); i++) {
+			std::array<double, 2> body_coordinate;
+			body_coordinate[0] = body_coordinates[i][0];
+			body_coordinate[1] = body_coordinates[i][1];
+			/// TODO : return the adjacents for given index in mesh.
+			/// std::vector<size_t> get_adjacent(dolfin::Mesh& mesh, std::array<double,2> body_coordinate);
+			std::vector<size_t> adjacents;
+			for (size_t j = 0; j < adjacents.size(); j++) {
+				/// TODO : Cell constructor take local index to initial.
+				///        so it is waiting to be corrected.
+				Cell cell(*mesh, adjacents[j]);
+				boost::multi_array<double, 2> coordinates;
+				std::vector<double> coordinate_dofs;
+				auto _element = v.function_space()->element();
+				_element->tabulate_dof_coordinates(coordinates, coordinate_dofs, *cell);
+				/// local index of the cell is needed rather than global index.
+				auto cell_dofmap = dofmap->cell_dofs(cell.index());
+				for (size_t k = 0; k < 3; k++) {
+					/// TODO : multiply with delta function.
+					/// double delta(double x, double y);
+					double delta = 0.001;
+					/// four components are needed here: body_coordinate, coordinates, coordinate_dofs, cel_dofmap
+					body[cell_dofmap[i]] += delta(body_coordinate, coordinates[k]) * coordinate_dofs[k];
+				}
+			}
+		}
+	}
+}
+
 PYBIND11_MODULE(SIGNATURE, m)
 {
 	py::class_<RegularMesh>(m, "RegularMesh")
