@@ -11,9 +11,9 @@
 PYBIND11_MAKE_OPAQUE(std::vector<double>);
 namespace py = pybind11;
 
-class RegularMesh {
+class BoxAdjacents {
 public:
-	RegularMesh(std::shared_ptr<const dolfin::Mesh> mesh) :
+	RectangleAdjacent(std::shared_ptr<const dolfin::Mesh> mesh) :
 		_mesh(mesh)/*, _mpi_comm(mesh->mpi_comm())*/ {
 		;
 	}
@@ -67,6 +67,7 @@ public:
 			}
 		}
 	}
+	// global index and cell center
 	std::array<size_t, 2> map(size_t i) {
 		return global_map[i];
 	}
@@ -97,42 +98,48 @@ class DeltaInterplation {
 		u.vector()->set_local(values);
 	}
 	/// distribute v to vector body on every process.
-	void fun1(dolfin::Function& v, std::vector<double>& body.boost::multi_array<double, 2> & body_coordinates) {
-
+	void fun1(dolfin::Function& v, std::vector<double>& body.
+		std::vector<std::array<double, 2>> & body_coordinates)
+	{
 		/// there is no need to iterate all mesh.
-		auto mesh = v.function_space()->mesh();
-		auto dofmap = v.function_space()->dofmap();
+		auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
+		auto mesh = v.function_space()->mesh();			// pointer to a mesh
+		auto dofmap = v.function_space()->dofmap();     // pointer to a dofmap
 
 		/// TODO : return the reference of the global_map.
 		/// std::vector<std::array<size_t,2>> get_global_map(); 
 		for (size_t i = 0; i < body.size(); i++) {
-			std::array<double, 2> body_coordinate;
-			body_coordinate[0] = body_coordinates[i][0];
-			body_coordinate[1] = body_coordinates[i][1];
+			std::array<double, 2> body_coordinate = body_coordinates[i];
 			/// TODO : return the adjacents for given index in mesh.
 			/// std::vector<size_t> get_adjacent(dolfin::Mesh& mesh, std::array<double,2> body_coordinate);
-			std::vector<size_t> adjacents;
+			std::vector<std::array<size_t, 2>> adjacents = rectangle_adjacents.get(body_coordinate);
 			for (size_t j = 0; j < adjacents.size(); j++) {
 				/// TODO : Cell constructor take local index to initial.
 				///        so it is waiting to be corrected.
-				Cell cell(*mesh, adjacents[j]);
-				boost::multi_array<double, 2> coordinates;
-				std::vector<double> coordinate_dofs;
-				auto _element = v.function_space()->element();
-				_element->tabulate_dof_coordinates(coordinates, coordinate_dofs, *cell);
-				/// local index of the cell is needed rather than global index.
-				auto cell_dofmap = dofmap->cell_dofs(cell.index());
-				for (size_t k = 0; k < 3; k++) {
-					/// TODO : multiply with delta function.
-					/// double delta(double x, double y);
-					double delta = 0.001;
-					/// four components are needed here: body_coordinate, coordinates, coordinate_dofs, cel_dofmap
-					body[cell_dofmap[i]] += delta(body_coordinate, coordinates[k]) * coordinate_dofs[k];
+				if (adjacents[j][0] == rank) {
+					Cell cell(*mesh, adjacents[j][1]);
+					boost::multi_array<double, 2> coordinates;			/// coordinates of the cell
+					std::vector<double> coordinate_dofs;				/// coordinate_dofs of the cell
+					auto _element = v.function_space()->element();		/// element of the function space
+					/// get coordinates and coordinate_dofs
+					_element->tabulate_dof_coordinates(coordinates, coordinate_dofs, *cell);
+					/// local index of the cell is needed rather than global index.
+					auto cell_dofmap = dofmap->cell_dofs(cell.index());
+					for (size_t k = 0; k < 3; k++) {
+						/// TODO : multiply with delta function.
+						/// double delta(double x, double y);
+						/// four components are needed here: body_coordinate, coordinates, coordinate_dofs, cel_dofmap
+						body[cell_dofmap[i]] += delta(body_coordinate, coordinates[k]) * coordinate_dofs[k];
+					}// end loop inside the cell
 				}
+				// end the judgement of cell's rank
 			}
+			// end adjacents loop
 		}
+		// end body cycle
 	}
-}
+	// end of fun1
+};
 
 PYBIND11_MODULE(SIGNATURE, m)
 {
