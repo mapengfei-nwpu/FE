@@ -84,16 +84,74 @@ public:
             std::cout << hash(cell->midpoint()) << std::endl;
             if (cell->global_index() != hash(cell->midpoint()))
             {
-                dolfin_error("mesh is not consistent.", " ", " ");
+                dolfin_error("mesh is not consistent.", ".", ".");
                 return false;
             }
         }
         return true;
     }
 
+    // point -> global index of adjacent cells -> local index of adjacent cells
+    std::vector<size_t> get_adjacents(Point point)
+    {
+
+        std::vector<size_t> adjacents;
+        size_t global_index = hash(point);
+        size_t a[9] = {global_index - nx - 1, global_index - nx, global_index - nx + 1,
+                       global_index - 1, global_index, global_index + 1,
+                       global_index + nx - 1, global_index + nx, global_index + nx + 1};
+        for (size_t i = 0; i < 9; i++)
+        {
+            if (global_index >= 0 && global_index <= global_map.size())
+            {
+                if (map(a[i])[1] == dolfin::MPI::rank(_mesh.mpi_comm()))
+                {
+                    adjacents.push_back(map(a[i])[0]);
+                }
+            }
+        }
+        return adjacents;
+    }
+    void index_mesh()
+    {
+        // The local map local to global
+        std::vector<size_t> local_map;
+        for (dolfin::CellIterator e(_mesh); !e.end(); ++e)
+        {
+            auto center = e->midpoint();
+            local_map.push_back(e->global_index());
+            local_map.push_back(dolfin::MPI::rank(_mesh.mpi_comm()));
+            local_map.push_back(e->index());
+        }
+        // send local map to every peocess.
+        std::vector<std::vector<size_t>> mpi_collect(dolfin::MPI::size(_mesh.mpi_comm()));
+        dolfin::MPI::all_gather(_mesh.mpi_comm(), local_map, mpi_collect);
+        // alloc memory for global map.
+        auto num_cell_global = _mesh.num_entities_global(2);
+        global_map.resize(num_cell_global);
+        for (auto iter = mpi_collect.cbegin(); iter != mpi_collect.cend(); iter++)
+        {
+            for (auto jter = iter->begin(); jter != iter->cend();)
+            {
+                size_t cell_index = *jter;
+                jter++;
+                global_map[cell_index][0] = *jter; /// mpi_rank;size_t
+                jter++;
+                global_map[cell_index][1] = *jter; /// cell hash;
+                jter++;
+            }
+        }
+    }
+    // global index and cell center
+    std::array<size_t, 2> map(size_t i)
+    {
+        return global_map[i];
+    }
     double x0, x1, y0, y1, z0, z1;
     size_t nx, ny, nz;
     size_t top_dim;
+    // The map of global index to hash index for cells.
+    std::vector<std::array<size_t, 2>> global_map;
     Mesh _mesh;
 };
 
@@ -103,6 +161,15 @@ int main()
     Point p0(0, 0, 0);
     Point p1(1, 1, 1);
     BoxAdjacents ba({p0, p1}, {8, 8}, CellType::Type::quadrilateral);
-    //BoxAdjacents ba({p0,p1}, {8,8,8}, CellType::Type::hexahedron);
-    ba.check();
+    ba.index_mesh();
+
+    std::cout << "global index: "
+              << ba.hash(Point(0.5, 0.75))
+              << ". local index: "
+              << ba.map(ba.hash(Point(0.5, 0.75)))[1]
+              << ". mpi rank: "
+              << ba.map(ba.hash(Point(0.5, 0.75)))[0]
+              << std::endl;
+    // BoxAdjacents ba({p0,p1}, {8,8,8}, CellType::Type::hexahedron);
+    // ba.check();
 }
