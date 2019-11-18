@@ -50,6 +50,7 @@ public:
             z0 = points[0].z();
             z1 = points[1].z();
         }
+        index_mesh();
     }
     size_t hash(dolfin::Point point)
     {
@@ -80,11 +81,20 @@ public:
     {
         for (CellIterator cell(_mesh); !cell.end(); ++cell)
         {
-            std::cout << "global:" << cell->global_index() << ",hash:";
-            std::cout << hash(cell->midpoint()) << std::endl;
+            auto point = cell->midpoint();
+            std::cout << "global index: "
+                      << cell->global_index()
+                      << " or "
+                      << hash(point)
+                      << ". local index: "
+                      << cell->index()
+                      << " or "
+                      << map(hash(point))[1]
+                      << ". mpi rank: "
+                      << map(hash(point))[0]
+                      << std::endl;
             if (cell->global_index() != hash(cell->midpoint()))
             {
-                dolfin_error("mesh is not consistent.", ".", ".");
                 return false;
             }
         }
@@ -112,6 +122,14 @@ public:
         }
         return adjacents;
     }
+
+    // global index and cell center
+    std::array<size_t, 2> map(size_t i)
+    {
+        return global_map[i];
+    }
+
+private:
     void index_mesh()
     {
         // The local map local to global
@@ -142,11 +160,7 @@ public:
             }
         }
     }
-    // global index and cell center
-    std::array<size_t, 2> map(size_t i)
-    {
-        return global_map[i];
-    }
+
     double x0, x1, y0, y1, z0, z1;
     size_t nx, ny, nz;
     size_t top_dim;
@@ -161,15 +175,8 @@ int main()
     Point p0(0, 0, 0);
     Point p1(1, 1, 1);
     BoxAdjacents ba({p0, p1}, {8, 8}, CellType::Type::quadrilateral);
-    ba.index_mesh();
+    auto a = 1.0;
 
-    std::cout << "global index: "
-              << ba.hash(Point(0.5, 0.75))
-              << ". local index: "
-              << ba.map(ba.hash(Point(0.5, 0.75)))[1]
-              << ". mpi rank: "
-              << ba.map(ba.hash(Point(0.5, 0.75)))[0]
-              << std::endl;
     // BoxAdjacents ba({p0,p1}, {8,8,8}, CellType::Type::hexahedron);
     // ba.check();
 }
