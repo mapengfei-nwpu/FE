@@ -1,0 +1,9 @@
+测试两个fenics自带的网格生成器
+BoxMesh::build_hex()
+RectangleMesh::build_quad()
+在并行时检测下面两个是否相同。
+1. cell.global_index()
+2. cell.center()
+最后在代码中保留检测代码。
+
+2019/11/18 10:32
