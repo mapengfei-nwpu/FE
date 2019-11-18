@@ -92,6 +92,8 @@ public:
                       << map(hash(point))[1]
                       << ". mpi rank: "
                       << map(hash(point))[0]
+                      << ". number of adjacents: "
+                      // << get_adjacents(point).size()
                       << std::endl;
             if (cell->global_index() != hash(cell->midpoint()))
             {
@@ -104,7 +106,7 @@ public:
     // point -> global index of adjacent cells -> local index of adjacent cells
     std::vector<size_t> get_adjacents(Point point)
     {
-
+        /// only finished for 2d occassion.
         std::vector<size_t> adjacents;
         size_t global_index = hash(point);
         size_t a[9] = {global_index - nx - 1, global_index - nx, global_index - nx + 1,
@@ -114,7 +116,7 @@ public:
         {
             if (global_index >= 0 && global_index <= global_map.size())
             {
-                if (map(a[i])[1] == dolfin::MPI::rank(_mesh.mpi_comm()))
+                if (map(a[i])[0] == dolfin::MPI::rank(_mesh.mpi_comm()))
                 {
                     adjacents.push_back(map(a[i])[0]);
                 }
@@ -169,81 +171,96 @@ private:
     Mesh _mesh;
 };
 
+class DeltaInterplation
+{
+    /// collect all body vectors on every processes and
+    /// assign them to a function.
+    void fun0(dolfin::Function &u, std::vector<double> &body)
+    {
+        /// TODO : all reduce body.
+        /// dolfin::MPI::all_reduce(body)
+        auto size = u.vector()->local_size();
+        auto start = u.vector()->local_range().first;
+        std::vector<double> values(size);
+        for (size_t i = 0; i < size; ++i)
+            values[i] = body[i + start];
+        u.vector()->set_local(values);
+    }
 
+    /// distribute v to vector body on every process.
+    void fun1(dolfin::Function &v, BoxAdjacents &um, std::vector<double> &body,
+              std::vector<std::array<double, 2>> &body_coordinates)
+    {
+        /// the meshes of v and um should be the same.
+        /// TODO : compare these two meshed.
 
-class DeltaInterplation{
-	/// collect all body vectors on every processes and 
-	/// assign them to a function.
-	void fun0(dolfin::Function& u, std::vector<double>& body){
-		/// TODO : all reduce body.
-		/// dolfin::MPI::all_reduce(body)
-		auto size  = u.vector()->local_size();
-		auto start = u.vector()->local_range().first;
-		std::vector<double> values(size);
-		for(size_t i = 0; i < size; ++i)
-			values[i] = body[i+start];
-		u.vector()->set_local(values);
-	}
-	/// distribute v to vector body on every process.
-	void fun1(dolfin::Function& v, std::vector<double>& body. 
-				std::vector<std::array<double, 2>>& body_coordinates)
-	{
-		/// there is no need to iterate all mesh.
-		auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
-		auto mesh = v.function_space()->mesh();			// pointer to a mesh
-		auto dofmap = v.function_space()->dofmap();     // pointer to a dofmap
+        /// smart shortcut
+        auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
+        auto mesh = v.function_space()->mesh();     // pointer to a mesh
+        auto dofmap = v.function_space()->dofmap(); // pointer to a dofmap
 
-		/// TODO : return the reference of the global_map.
-		/// std::vector<std::array<size_t,2>> get_global_map(); 
-		for(size_t i = 0; i < body.size(); i++){
-			std::array<double, 2> body_coordinate = body_coordinates[i];
-			/// TODO : return the adjacents for given index in mesh.
-			/// std::vector<size_t> get_adjacent(dolfin::Mesh& mesh, std::array<double,2> body_coordinate);
-			std::vector<std::array<size_t,2>> adjacents = rectangle_adjacents.get(body_coordinate);
-			for(size_t j = 0; j < adjacents.size(); j++){
-				/// TODO : Cell constructor take local index to initial.
-				///        so it is waiting to be corrected.
-				if(adjacents[j][0] == rank){
-					Cell cell(*mesh, adjacents[j][1]);
-					boost::multi_array<double, 2> coordinates;			/// coordinates of the cell
-  					std::vector<double> coordinate_dofs;				/// coordinate_dofs of the cell
-					auto _element = v.function_space()->element();		/// element of the function space
-					/// get coordinates and coordinate_dofs
-					_element->tabulate_dof_coordinates(coordinates, coordinate_dofs, *cell);
-					/// local index of the cell is needed rather than global index.
-					auto cell_dofmap = dofmap->cell_dofs(cell.index());
-					for(size_t k = 0; k < 3; k++){
-						/// TODO : multiply with delta function.
-				   		/// double delta(double x, double y);
-						/// four components are needed here: body_coordinate, coordinates, coordinate_dofs, cel_dofmap
-						body[cell_dofmap[i]] += delta(body_coordinate, coordinates[k])*coordinate_dofs[k];
-					}// end loop inside the cell
-				}
-				// end the judgement of cell's rank
-			}
-			// end adjacents loop
-		}
-		// end body cycle
-	}
-	// end
+        /// iterate every body coordinate.
+        for (size_t i = 0; i < body.size(); i++)
+        {
+            Point body_coordinate(body_coordinates[i][0], body_coordinates[i][0]);
+            auto adjacents = um.get_adjacents(body_coordinate);
+            for (size_t j = 0; j < adjacents.size(); j++)
+            {
+                /// Cell constructor take local index to initial.
+                Cell cell(*mesh, adjacents[j]);
+                boost::multi_array<double, 2> coordinates; /// coordinates of the cell
+                std::vector<double> coordinate_dofs;       /// coordinate_dofs of the cell
+                cell.get_coordinate_dofs(coordinate_dofs);
+                auto _element = v.function_space()->element(); /// element of the function space
+                /// get coordinates and coordinate_dofs
+                _element->tabulate_dof_coordinates(coordinates, coordinate_dofs, cell);
+                /// local index of the cell is needed rather than global index.
+                auto cell_dofmap = dofmap->cell_dofs(cell.index());
+                for (size_t k = 0; k < cell_dofmap.size(); k++)
+                {
+                    /// multiply with delta function.
+                    /// four components are needed here: body_coordinate,
+                    /// coordinates, coordinate_dofs, cel_dofmap
+                    Point on_cell(coordinates[k][0], coordinates[k][1]);
+                    body[cell_dofmap[i]] += delta(body_coordinate, on_cell) * coordinate_dofs[k];
+                } // end loop inside the cell
+            }
+            // end adjacents loop
+        }
+        // end body cycle
+
+    }
+    // end
+
+    double phi(double r)
+    {
+        r = fabs(r);
+        if (r > 2) return 0;
+        else return 0.25 * (1 + cos(FENICS_PI * r * 0.5));
+    }
+    double delta(Point p0, Point p1, double h = 0.02)
+    {
+        double ret = 1.0;
+        for (unsigned i = 0; i < 2; ++i)
+        {
+            double dx = p0.coordinates()[i] - p1.coordinates()[i];
+            ret *= 1. / h * phi(dx / h);
+        }
+        return ret;
+    }
 };
-
-
-
-
-
-
-
-
-
-
 
 int main()
 {
 
     Point p0(0, 0, 0);
-    Point p1(1, 1, 1);
+    Point p1(1, 1, 0);
     BoxAdjacents ba({p0, p1}, {8, 8}, CellType::Type::quadrilateral);
+    std::cout << "index:"
+              << ba.hash(Point(0.5, 0.5))
+              << "adjacent number"
+              << ba.get_adjacents(Point(0.5, 0.5)).size()
+              << std::endl;
     auto a = 1.0;
 
     // BoxAdjacents ba({p0,p1}, {8,8,8}, CellType::Type::hexahedron);
