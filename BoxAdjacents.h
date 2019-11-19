@@ -1,6 +1,5 @@
 #include <iostream>
 #include <dolfin.h>
-#include "BoxAdjacents.h"
 using namespace dolfin;
 
 class BoxAdjacents
@@ -112,16 +111,20 @@ public:
 		/// only finished for 2d occassion.
 		std::vector<size_t> adjacents;
 		size_t global_index = hash(point);
-		size_t a[9] = { global_index - nx - 1, global_index - nx, global_index - nx + 1,
-					   global_index - 1, global_index, global_index + 1,
-					   global_index + nx - 1, global_index + nx, global_index + nx + 1 };
-		for (size_t i = 0; i < 9; i++)
+		std::vector<size_t> a = {
+			global_index - 2 * nx - 2, 	global_index - 2 * nx - 1, 	global_index - 2 * nx, 	global_index - 2 * nx + 1, 	global_index - 2 * nx + 2,
+			global_index - nx - 2, 		global_index - nx - 1, 		global_index - nx, 		global_index - nx + 1, 		global_index - nx + 2,
+			global_index - 2, 			global_index - 1, 			global_index, 			global_index + 1, 			global_index + 2,
+			global_index + nx - 2, 		global_index + nx - 1, 		global_index + nx, 		global_index + nx + 1, 		global_index + nx + 2,
+			global_index + 2 * nx - 2, 	global_index + 2 * nx - 1, 	global_index + 2 * nx, 	global_index + 2 * nx + 1, 	global_index + 2 * nx + 2 };
+		for (size_t i = 0; i < a.size(); i++)
 		{
-			if (global_index >= 0 && global_index <= global_map.size())
+			if (a[i] >= 0 && a[i] < global_map.size())
 			{
+
 				if (map(a[i])[0] == dolfin::MPI::rank(mesh_ptr->mpi_comm()))
 				{
-					adjacents.push_back(map(a[i])[0]);
+					adjacents.push_back(map(a[i])[1]);
 				}
 			}
 		}
@@ -132,6 +135,10 @@ public:
 	std::array<size_t, 2> map(size_t i)
 	{
 		return global_map[i];
+	}
+	std::shared_ptr<Mesh> mesh()
+	{
+		return mesh_ptr;
 	}
 
 private:
@@ -173,24 +180,3 @@ private:
 	std::vector<std::array<size_t, 2>> global_map;
 	std::shared_ptr<Mesh> mesh_ptr;
 };
-
-/*
-
-int main()
-{
-
-	Point p0(0, 0, 0);
-	Point p1(1, 1, 0);
-	BoxAdjacents ba({p0, p1}, {8, 8}, CellType::Type::quadrilateral);
-	std::cout << "index:"
-			  << ba.hash(Point(0.5, 0.5))
-			  << "adjacent number"
-			  << ba.get_adjacents(Point(0.5, 0.5)).size()
-			  << std::endl;
-	auto a = 1.0;
-
-	// BoxAdjacents ba({p0,p1}, {8,8,8}, CellType::Type::hexahedron);
-	// ba.check();
-}
-*/
-
