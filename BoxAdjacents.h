@@ -1,11 +1,12 @@
 #include <iostream>
 #include <dolfin.h>
+#include "BoxAdjacents.h"
 using namespace dolfin;
 
 class BoxAdjacents
 {
 public:
-	BoxAdjacents(std::array< Point, 2> points, std::vector<size_t> dims, CellType::Type cell_type)
+	BoxAdjacents(std::array<dolfin::Point, 2> points, std::vector<size_t> dims, CellType::Type cell_type)
 	{
 
 		// toplogy dimesion
@@ -15,12 +16,14 @@ public:
 		if (cell_type == CellType::Type::hexahedron)
 		{
 			dolfin_assert(top_dims == 3);
-			_mesh = BoxMesh::create(points, { dims[0], dims[1], dims[2] }, cell_type);
+			auto _mesh = BoxMesh::create(points, { dims[0], dims[1], dims[2] }, cell_type);
+			mesh_ptr = std::make_shared<Mesh>(_mesh);
 		}
 		else if (cell_type == CellType::Type::quadrilateral)
 		{
 			dolfin_assert(top_dims == 2);
-			_mesh = RectangleMesh::create(points, { dims[0], dims[1] }, cell_type);
+			auto _mesh = RectangleMesh::create(points, { dims[0], dims[1] }, cell_type);
+			mesh_ptr = std::make_shared<Mesh>(_mesh);
 		}
 		else
 		{
@@ -52,7 +55,7 @@ public:
 		}
 		index_mesh();
 	}
-	size_t hash(Point point)
+	size_t hash(dolfin::Point point)
 	{
 		if (top_dim != 2 && top_dim != 3)
 			dolfin_error("the size of dims must be 2 and 3.", ".", ".");
@@ -79,7 +82,7 @@ public:
 	}
 	bool check()
 	{
-		for (CellIterator cell(_mesh); !cell.end(); ++cell)
+		for (CellIterator cell(*mesh_ptr); !cell.end(); ++cell)
 		{
 			auto point = cell->midpoint();
 			std::cout << "global index: "
@@ -116,7 +119,7 @@ public:
 		{
 			if (global_index >= 0 && global_index <= global_map.size())
 			{
-				if (map(a[i])[0] == dolfin::MPI::rank(_mesh.mpi_comm()))
+				if (map(a[i])[0] == dolfin::MPI::rank(mesh_ptr->mpi_comm()))
 				{
 					adjacents.push_back(map(a[i])[0]);
 				}
@@ -136,18 +139,18 @@ private:
 	{
 		// The local map local to global
 		std::vector<size_t> local_map;
-		for (CellIterator e(_mesh); !e.end(); ++e)
+		for (dolfin::CellIterator e(*mesh_ptr); !e.end(); ++e)
 		{
 			auto center = e->midpoint();
 			local_map.push_back(e->global_index());
-			local_map.push_back(dolfin::MPI::rank(_mesh.mpi_comm()));
+			local_map.push_back(dolfin::MPI::rank(mesh_ptr->mpi_comm()));
 			local_map.push_back(e->index());
 		}
 		// send local map to every peocess.
-		std::vector<std::vector<size_t>> mpi_collect(dolfin::MPI::size(_mesh.mpi_comm()));
-		dolfin::MPI::all_gather(_mesh.mpi_comm(), local_map, mpi_collect);
+		std::vector<std::vector<size_t>> mpi_collect(dolfin::MPI::size(mesh_ptr->mpi_comm()));
+		dolfin::MPI::all_gather(mesh_ptr->mpi_comm(), local_map, mpi_collect);
 		// alloc memory for global map.
-		auto num_cell_global = _mesh.num_entities_global(2);
+		auto num_cell_global = mesh_ptr->num_entities_global(2);
 		global_map.resize(num_cell_global);
 		for (auto iter = mpi_collect.cbegin(); iter != mpi_collect.cend(); iter++)
 		{
@@ -168,7 +171,7 @@ private:
 	size_t top_dim;
 	// The map of global index to hash index for cells.
 	std::vector<std::array<size_t, 2>> global_map;
-	Mesh _mesh;
+	std::shared_ptr<Mesh> mesh_ptr;
 };
 
 /*
