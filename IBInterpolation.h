@@ -27,12 +27,19 @@ public:
 		auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
 		auto mesh = v.function_space()->mesh();		// pointer to a mesh
 		auto dofmap = v.function_space()->dofmap(); // pointer to a dofmap
-		size_t n = 0;
+
+		std::cout << "value size: " << v.value_size() << std::endl;
+		std::cout << "value size: " << body.size() << std::endl;
 
 		/// iterate every body coordinate.
-		for (size_t i = 0; i < body.size(); i += v.value_size())
+		for (size_t i = 0; i < body.size() / v.value_size(); i++)
 		{
-			body[i] = 0.0;
+			/// initialize body to zero.
+			for (size_t l = 0; l < v.value_size(); l++)
+			{
+				body[i * v.value_size() + l] = 0.0;
+			}
+
 			Point body_coordinate(body_coordinates[i][0], body_coordinates[i][1]);
 			auto adjacents = um.get_adjacents(body_coordinate);
 			for (size_t j = 0; j < adjacents.size(); j++)
@@ -53,16 +60,17 @@ public:
 					Point on_cell(coordinates[k][0], coordinates[k][1]);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
-						body[i + l] += delta(body_coordinate, on_cell) * (*(v.vector()))[cell_dofmap[k] + l] / 16.0 / 16.0;
+						body[i * v.value_size() + l] += delta(body_coordinate, on_cell) * (*(v.vector()))[cell_dofmap[k] + l] / 16.0 / 16.0;
 					}
-					///////////////////////////// WATCH OUT!//////////////////////////////////
+
+					///////////////////////////// WATCH OUT! /////////////////////////////////
 					///                                                                    ///
 					///  vector in a Function is initialized with a dofmap. this dofmap    ///
 					///  contains many informations especially the layout of the vector.   ///
 					///  Besides, dofmap tells which is the ghost entries of a element.    ///
 					///  see Function::init_vector()                                       ///
 					///  and https://fenicsproject.discourse.group/t/it-seems-that         ///
-					///  -local-size-didnt-return-real-local-size-of-a-vector/1929         ///    
+					///  -local-size-didnt-return-real-local-size-of-a-vector/1929         ///
 					///                                                                    ///
 					//////////////////////////////////////////////////////////////////////////
 
