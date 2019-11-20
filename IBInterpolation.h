@@ -52,7 +52,12 @@ public:
 
 					//////////////////////////// WATCH OUT!//////////////////////////////////
 					///                                                                   ///
-					/// (*(v.vector()))[cell_dofmap[k]], operator[] might out of range!!  ///
+					/// vector in a Function is initialized with a dofmap. this dofmap    ///
+					/// contains many informations especially the layout of the vector.   ///
+					/// Besides, dofmap tells which is the ghost entries of a element.    ///
+					/// see Function::init_vector()                                       ///
+					/// and https://fenicsproject.discourse.group/t/it-seems-that         ///
+					/// -local-size-didnt-return-real-local-size-of-a-vector/1929         ///    
 					///                                                                   ///
 					/////////////////////////////////////////////////////////////////////////
 					/*
