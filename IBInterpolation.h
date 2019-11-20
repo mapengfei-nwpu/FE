@@ -21,20 +21,23 @@ public:
 	{
 		/// the meshes of v and um should be the same.
 		/// TODO : compare two meshes
-		std::cout << v.vector()->local_size() << std::endl;
+		dolfin_assert(v.value_size() == body.size() / body_coordinates.size());
+
 		/// smart shortcut
 		auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
 		auto mesh = v.function_space()->mesh();		// pointer to a mesh
 		auto dofmap = v.function_space()->dofmap(); // pointer to a dofmap
 		size_t n = 0;
+
 		/// iterate every body coordinate.
-		for (size_t i = 0; i < body.size(); i++)
+		for (size_t i = 0; i < body.size(); i += v.value_size())
 		{
 			body[i] = 0.0;
 			Point body_coordinate(body_coordinates[i][0], body_coordinates[i][1]);
 			auto adjacents = um.get_adjacents(body_coordinate);
 			for (size_t j = 0; j < adjacents.size(); j++)
 			{
+
 				/// Cell constructor take local index to initial
 				Cell cell(*mesh, adjacents[j]);
 				boost::multi_array<double, 2> coordinates; /// coordinates of the cell
@@ -45,38 +48,29 @@ public:
 				_element->tabulate_dof_coordinates(coordinates, coordinate_dofs, cell);
 				/// local index of cell is needed rather than global index.
 				auto cell_dofmap = dofmap->cell_dofs(cell.index());
-				for (size_t k = 0; k < cell_dofmap.size(); k++)
+				for (size_t k = 0; k < cell_dofmap.size() / v.value_size(); k++)
 				{
 					Point on_cell(coordinates[k][0], coordinates[k][1]);
-					body[i] += delta(body_coordinate, on_cell) * (*(v.vector()))[cell_dofmap[k]] / 16.0 / 16.0;
-
-					//////////////////////////// WATCH OUT!//////////////////////////////////
-					///                                                                   ///
-					/// vector in a Function is initialized with a dofmap. this dofmap    ///
-					/// contains many informations especially the layout of the vector.   ///
-					/// Besides, dofmap tells which is the ghost entries of a element.    ///
-					/// see Function::init_vector()                                       ///
-					/// and https://fenicsproject.discourse.group/t/it-seems-that         ///
-					/// -local-size-didnt-return-real-local-size-of-a-vector/1929         ///    
-					///                                                                   ///
-					/////////////////////////////////////////////////////////////////////////
-					/*
-					if (cell_dofmap[k] > v.vector()->local_size() && rank == 0 )
+					for (size_t l = 0; l < v.value_size(); l++)
 					{
-						std::cout << "index: " << cell_dofmap[k] << "vector size: " << v.vector()->local_size() << std::endl;
-					}*/
+						body[i + l] += delta(body_coordinate, on_cell) * (*(v.vector()))[cell_dofmap[k] + l] / 16.0 / 16.0;
+					}
+					///////////////////////////// WATCH OUT!//////////////////////////////////
+					///                                                                    ///
+					///  vector in a Function is initialized with a dofmap. this dofmap    ///
+					///  contains many informations especially the layout of the vector.   ///
+					///  Besides, dofmap tells which is the ghost entries of a element.    ///
+					///  see Function::init_vector()                                       ///
+					///  and https://fenicsproject.discourse.group/t/it-seems-that         ///
+					///  -local-size-didnt-return-real-local-size-of-a-vector/1929         ///    
+					///                                                                    ///
+					//////////////////////////////////////////////////////////////////////////
 
 				} // end loop inside the cell
 			}
 			// end adjacents loop
 		}
-		// end body cycle
-		/* output body before mpi all_gather.
-		for (size_t i = 0; i < body.size(); ++i)
-		{
-			if (rank == 0)
-				std::cout << body[i] << std::endl;
-		}*/
+		////////////////////////// gather body on one processor //////////////////////////
 		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
 		dolfin::MPI::all_gather(mesh->mpi_comm(), body, mpi_collect);
 		for (size_t i = 0; i < body.size(); i++)
@@ -87,13 +81,7 @@ public:
 				body[i] += mpi_collect[j][i];
 			}
 		}
-		/* output after all_gather.
-		for (size_t i = 0; i < body.size(); ++i)
-		{
-			if (rank == 0)
-				std::cout << body[i] << std::endl;
-		}
-		*/
+		//////////////////////////////////////////////////////////////////////////////////
 	}
 
 	////////////////////////////////////////////
