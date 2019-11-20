@@ -20,7 +20,7 @@ int main()
 {
 	Point p0(0, 0, 0);
 	Point p1(1, 1, 0);
-	BoxAdjacents ba({ p0, p1 }, { 8, 8 }, CellType::Type::quadrilateral);
+	BoxAdjacents ba({ p0, p1 }, { 16, 16 }, CellType::Type::quadrilateral);
 	auto V = std::make_shared<Poisson::FunctionSpace>(ba.mesh());
 	auto g = std::make_shared<xplusy>();
 	Function u(V);
@@ -34,7 +34,7 @@ int main()
 	DeltaInterplation::fun1(u, ba, body, body_coordinates);
 	for (size_t i = 0; i < 8; i++)
 	{
-		std::cout << body[i] << std::endl;
+		std::cout << body[i] / 4.0 << std::endl;
 	}
 
 

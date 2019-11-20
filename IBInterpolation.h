@@ -103,7 +103,7 @@ public:
 		else
 			return 0.25 * (1 + cos(FENICS_PI * r * 0.5));
 	}
-	static double delta(Point p0, Point p1, double h = 0.125)
+	static double delta(Point p0, Point p1, double h = 0.0625)
 	{
 		double ret = 1.0;
 		for (unsigned i = 0; i < 2; ++i)
