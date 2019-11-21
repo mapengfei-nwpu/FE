@@ -141,6 +141,14 @@ public:
 		return mesh_ptr;
 	}
 
+	std::vector<double> side_length()
+	{
+		std::vector<double> side_lengths;
+		side_lengths.push_back((x1 - x0) / nx);
+		side_lengths.push_back((y1 - y0) / ny);
+		return side_lengths;
+	}
+
 private:
 	void index_mesh()
 	{
