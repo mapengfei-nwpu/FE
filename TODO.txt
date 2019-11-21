@@ -25,3 +25,28 @@ RectangleMesh::build_quad()
 1. 新建一个vector代替function中的vector。
 2. 将函数空间改成2阶的。
 3. 将标量空间改成向量空间。
+
+2019/11/21 21：45
+固体到流体插值的并行效率：
+（固体和流体都有1000*1000个单元）
+npuheart9@fenics:~/FE$ time mpirun -np 1 ./demo_poisson
+
+real    0m14.199s
+user    0m13.112s
+sys     0m0.807s
+npuheart9@fenics:~/FE$ time mpirun -np 2 ./demo_poisson
+
+real    0m11.326s
+user    0m20.584s
+sys     0m1.284s
+npuheart9@fenics:~/FE$ time mpirun -np 4 ./demo_poisson
+
+real    0m6.855s
+user    0m23.895s
+sys     0m1.733s
+
+npuheart9@fenics:~/FE$ time mpirun -np 8 ./demo_poisson
+
+real    0m5.712s
+user    0m38.481s
+sys     0m3.334s

@@ -22,21 +22,21 @@ int main()
 {
 	Point p0(0, 0, 0);
 	Point p1(1, 1, 0);
-	BoxAdjacents ba({ p0, p1 }, { 16, 16 }, CellType::Type::quadrilateral);
+	BoxAdjacents ba({ p0, p1 }, { 106, 106 }, CellType::Type::quadrilateral);
 	auto V = std::make_shared<Poisson::FunctionSpace>(ba.mesh());
 	auto g = std::make_shared<xplusy>();
 	Function v(V);
-	v.interpolate(*g);
 
 	Point p2(0.25, 0.25, 0);
 	Point p3(0.75, 0.75, 0);
-	BoxAdjacents bb({ p2, p3 }, { 16, 16 }, CellType::Type::quadrilateral);
+	BoxAdjacents bb({ p2, p3 }, { 100, 100 }, CellType::Type::quadrilateral);
 	auto U = std::make_shared<Poisson::FunctionSpace>(bb.mesh());
 	Function u(U);
+	u.interpolate(*g);
 
 	DeltaInterplation di(ba);
-	di.fluid_to_solid(v, u);
+	di.solid_to_fluid(v, u);
 
 	File file("xplusy.pvd");
-	file << u;
+	file << v;
 }
