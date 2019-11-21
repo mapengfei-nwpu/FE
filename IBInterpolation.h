@@ -1,12 +1,13 @@
 #include <dolfin.h>
 #include <numeric>
 using namespace dolfin;
-std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function& f){
+std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
+{
 	/// some shorcut
 	auto mesh = f.function_space()->mesh();
 	auto mpi_comm = mesh->mpi_comm();
 	auto mpi_size = dolfin::MPI::size(mpi_comm);
-	
+
 	/// get local coordinate_dofs
 	auto local_dof_coordinates = f.function_space()->tabulate_dof_coordinates();
 
@@ -26,8 +27,8 @@ std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function& f)
 	std::vector<std::array<double, 2>> dof_coordinates(dof_coordinates_long.size() / 4);
 	for (size_t i = 0; i < dof_coordinates_long.size(); i += 4)
 	{
-		dof_coordinates[i/4][0] = dof_coordinates_long[i];
-		dof_coordinates[i/4][1] = dof_coordinates_long[i+1];
+		dof_coordinates[i / 4][0] = dof_coordinates_long[i];
+		dof_coordinates[i / 4][1] = dof_coordinates_long[i + 1];
 	}
 
 	/// whatch the type of this function return.
@@ -35,12 +36,13 @@ std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function& f)
 	return dof_coordinates;
 }
 
-std::vector<double> get_global_dofs(const Function& f){
+std::vector<double> get_global_dofs(const Function &f)
+{
 	/// some shorcut
 	auto mesh = f.function_space()->mesh();
 	auto mpi_comm = mesh->mpi_comm();
 	auto mpi_size = dolfin::MPI::size(mpi_comm);
-	
+
 	/// get local values.
 	std::vector<double> local_values;
 	f.vector()->get_local(local_values);
@@ -65,18 +67,15 @@ class DeltaInterplation
 {
 public:
 	/// information about mesh structure.
-    BoxAdjacents& um;
+	BoxAdjacents &um;
 	std::vector<double> side_lengths;
 
 	/// construct function.
-	DeltaInterplation(BoxAdjacents& uniform_mesh) :  
-	um(uniform_mesh)
+	DeltaInterplation(BoxAdjacents &uniform_mesh) : um(uniform_mesh)
 	{
 		side_lengths = um.side_length();
 	}
 
-
-	/// Assign the solid displacement with the velocity of fluid.
 	void fluid_to_solid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs.
@@ -85,7 +84,7 @@ public:
 		fluid_to_solid_raw(fluid, values, dof_coordinates);
 
 		/// collect all body vectors on every processes and
-	    /// assign them to a function.
+		/// assign them to a function.
 		auto size = solid.vector()->local_size();
 		auto start = solid.vector()->local_range().first;
 		std::vector<double> local_values(size);
@@ -99,7 +98,7 @@ public:
 	}
 
 	void fluid_to_solid_raw(Function &v, std::vector<double> &body,
-					 std::vector<std::array<double, 2>> &body_coordinates)
+							std::vector<std::array<double, 2>> &body_coordinates)
 	{
 		/// the meshes of v and um should be the same.
 		/// TODO : compare two meshes
@@ -143,7 +142,7 @@ public:
 					double d = delta(body_coordinate, on_cell);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
-						body[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] *side_lengths[0]*side_lengths[1];
+						body[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1];
 					}
 
 					///////////////////////////// WATCH OUT! /////////////////////////////////
@@ -161,18 +160,86 @@ public:
 			}
 			// end adjacents loop
 		}
-		////////////////////////// gather body on one processor //////////////////////////
-		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
-		dolfin::MPI::all_gather(mesh->mpi_comm(), body, mpi_collect);
-		for (size_t i = 0; i < body.size(); i++)
+	}
+
+	/// Assign the solid displacement with the velocity of fluid.
+	void solid_to_fluid(Function &fluid, Function &solid)
+	{
+		/// calculate global dof coordinates and dofs.
+		auto dof_coordinates = get_global_dof_coordinates(solid);
+		auto values = get_global_dofs(solid);
+		std::cout << "coor size: "
+				  << dof_coordinates.size()
+				  << ". dofs size: "
+				  << values.size()
+				  << std::endl;
+
+		solid_to_fluid_raw(fluid, values, dof_coordinates);
+	}
+
+	///
+	void solid_to_fluid_raw(Function &fluid, std::vector<double> &solid_values,
+							std::vector<std::array<double, 2>> &solid_coordinates)
+	{
+		/// smart shortcut
+		auto rank = dolfin::MPI::rank(fluid.function_space()->mesh()->mpi_comm());
+		auto mesh = fluid.function_space()->mesh();		// pointer to a mesh
+		auto dofmap = fluid.function_space()->dofmap(); // pointer to a dofmap
+
+		/// get the element of the function space
+		auto element = fluid.function_space()->element();
+		auto value_size = fluid.value_size();
+		auto local_fluid_size = fluid.vector()->local_size();
+
+		/// initial local fluid values.
+		std::vector<double> local_fluid_values(local_fluid_size);
+
+		/// iterate every body coordinate.
+		for (size_t i = 0; i < solid_values.size() / value_size; i++)
 		{
-			body[i] = 0;
-			for (size_t j = 0; j < mpi_collect.size(); j++)
+
+			/// get indices of adjacent cells on fluid mesh.
+			Point solid_point(solid_coordinates[i][0], solid_coordinates[i][1]);
+			auto adjacents = um.get_adjacents(solid_point);
+
+			/// iterate adjacent cells.
+			for (size_t j = 0; j < adjacents.size(); j++)
 			{
-				body[i] += mpi_collect[j][i];
+				/// 1. get dofmap of the cell.
+				/// 2. get the coordinates of the cell.
+
+				/// step 1
+				/// get the cell
+				Cell cell(*mesh, adjacents[j]);
+				/// get the coordinate_dofs of the cell
+				std::vector<double> coordinate_dofs;
+				cell.get_coordinate_dofs(coordinate_dofs);
+				/// get the coordinates of the cell
+				boost::multi_array<double, 2> coordinates;
+				element->tabulate_dof_coordinates(coordinates, coordinate_dofs, cell);
+
+				/// step 2
+				/// local index of cell is needed rather than global index.
+				auto cell_dofmap = dofmap->cell_dofs(cell.index());
+
+				/// iterate coordinates on cell.
+				for (size_t k = 0; k < cell_dofmap.size() / value_size; k++)
+				{
+					Point cell_point(coordinates[k][0], coordinates[k][1]);
+					double d = delta(solid_point, cell_point, side_lengths[0]);
+					for (size_t l = 0; l < value_size; l++)
+					{
+
+						local_fluid_values[i * v.value_size() + l] += solid_values[i * value_size + l] * d * side_lengths[0] * side_lengths[1];
+					}
+
+				} // end loop inside the cell
 			}
+			// end adjacents loop
 		}
-		//////////////////////////////////////////////////////////////////////////////////
+
+		fluid.vector()->set_local(local_fluid_values);
+		fluid.vector()->apply("insert");
 	}
 
 	////////////////////////////////////////////
@@ -199,5 +266,4 @@ public:
 	////////////////////////////////////////////
 	// thses methods must not be modified!!  ///
 	////////////////////////////////////////////
-    
 };
