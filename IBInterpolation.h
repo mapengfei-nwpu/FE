@@ -14,6 +14,10 @@ public:
 		for (size_t i = 0; i < size; ++i)
 			values[i] = body[i + start];
 		u.vector()->set_local(values);
+
+		/// Finalize assembly of tensor.
+		/// this step is quite important.
+		u.vector()->apply("insert");
 	}
 
 	static void fun1(Function& v, BoxAdjacents& um, std::vector<double>& body,
@@ -60,7 +64,7 @@ public:
 					Point on_cell(coordinates[k][0], coordinates[k][1]);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
-						body[i * v.value_size() + l] += delta(body_coordinate, on_cell) * (*(v.vector()))[cell_dofmap[k] + l] / 16.0 / 16.0;
+						body[i * v.value_size() + l] += delta(body_coordinate, on_cell) * (*(v.vector()))[cell_dofmap[k] + l] / 32.0 / 32.0;
 					}
 
 					///////////////////////////// WATCH OUT! /////////////////////////////////
