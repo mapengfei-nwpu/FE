@@ -1,0 +1,21 @@
+# Compile this form with FFC: ffc -l dolfin TentativeVelocity.ufl.
+
+# Define function spaces (P2-P1)
+V = VectorElement("Lagrange", quadrilateral, 2)
+Q = FiniteElement("Lagrange", quadrilateral, 1)
+
+# Define trial and test functions
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# Define coefficients
+k  = Constant(quadrilateral)
+u0 = Coefficient(V)
+f  = Coefficient(V)
+nu = 0.01
+
+# Define bilinear and linear forms
+eq = (1/k)*inner(u - u0, v)*dx + inner(grad(u0)*u0, v)*dx + \
+    nu*inner(grad(u), grad(v))*dx - inner(f, v)*dx
+a  = lhs(eq)
+L  = rhs(eq)
