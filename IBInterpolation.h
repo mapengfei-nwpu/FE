@@ -76,7 +76,7 @@ public:
 		side_lengths = um.side_length();
 	}
 
-		/// Assign the solid displacement with the velocity of fluid.
+	/// Assign the solid displacement with the velocity of fluid.
 	void fluid_to_solid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs.
@@ -85,12 +85,12 @@ public:
 		fluid_to_solid_raw(fluid, values, dof_coordinates);
 
 		/// collect all body vectors on every processes and
-	    /// assign them to a function.
+		/// assign them to a function.
 		auto size = solid.vector()->local_size();
-		auto start = solid.vector()->local_range().first;
+		auto offset = solid.vector()->local_range().first;
 		std::vector<double> local_values(size);
 		for (size_t i = 0; i < size; ++i)
-			local_values[i] = values[i + start];
+			local_values[i] = values[i + offset];
 		solid.vector()->set_local(local_values);
 
 		/// Finalize assembly of tensor.
@@ -99,7 +99,7 @@ public:
 	}
 
 	void fluid_to_solid_raw(Function &v, std::vector<double> &body,
-					 std::vector<std::array<double, 2>> &body_coordinates)
+							std::vector<std::array<double, 2>> &body_coordinates)
 	{
 		/// the meshes of v and um should be the same.
 		/// TODO : compare two meshes
@@ -143,7 +143,7 @@ public:
 					double d = delta(body_coordinate, on_cell);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
-						body[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] *side_lengths[0]*side_lengths[1];
+						body[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1];
 					}
 
 					///////////////////////////// WATCH OUT! /////////////////////////////////
@@ -162,6 +162,7 @@ public:
 			// end adjacents loop
 		}
 		////////////////////////// gather body on one processor //////////////////////////
+		//////////////////  TODO : this part can use MPI_reduce directly  ////////////////
 		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
 		dolfin::MPI::all_gather(mesh->mpi_comm(), body, mpi_collect);
 		for (size_t i = 0; i < body.size(); i++)
@@ -179,19 +180,21 @@ public:
 	void solid_to_fluid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs of solid.
-		auto dof_coordinates = get_global_dof_coordinates(solid);
-		auto values = get_global_dofs(solid);
+		auto solid_dof_coordinates = get_global_dof_coordinates(solid);
+		auto solid_values = get_global_dofs(solid);
 
 		/// interpolates solid values into fluid mesh.
-		/// fluid_values is the dofs fluid function.
-		auto fluid_values = solid_to_fluid_raw(fluid, values, dof_coordinates);
+		/// the returned fluid_values is the dofs of fluid function.
+		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, solid_dof_coordinates);
 
 		/// assemble fluid_values into a function.
-		auto size = fluid.vector()->local_size();
-		auto start = fluid.vector()->local_range().first;
-		std::vector<double> local_values(size);
-		for (size_t i = 0; i < size; ++i)
-			local_values[i] = fluid_values[i + start];
+		auto local_size = fluid.vector()->local_size();
+		auto offset = fluid.vector()->local_range().first;
+		std::vector<double> local_values(local_size);
+		for (size_t i = 0; i < local_size; ++i)
+		{
+			local_values[i] = fluid_values[i + offset];
+		}
 		fluid.vector()->set_local(local_values);
 		fluid.vector()->apply("insert");
 	}
@@ -201,15 +204,18 @@ public:
 										   std::vector<std::array<double, 2>> &solid_coordinates)
 	{
 		/// smart shortcut
+		std::cout << "interpolate solid to fluid now." << std::endl;
 		auto rank = dolfin::MPI::rank(fluid.function_space()->mesh()->mpi_comm());
 		auto mesh = fluid.function_space()->mesh();		// pointer to a mesh
 		auto dofmap = fluid.function_space()->dofmap(); // pointer to a dofmap
+
+		/// Get local to global dofmap
 		std::vector<size_t> local_to_global;
 		dofmap->tabulate_local_to_global_dofs(local_to_global);
 
 		auto offset = fluid.vector()->local_range().first;
 
-		/// get the element of the function space
+		/// get the element of function space
 		auto element = fluid.function_space()->element();
 		auto value_size = fluid.value_size();
 		auto global_fluid_size = fluid.function_space()->dim();
@@ -249,10 +255,10 @@ public:
 				for (size_t k = 0; k < cell_dofmap.size() / value_size; k++)
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
-					double d = delta(solid_point, cell_point, side_lengths[0]);
+					double param = delta(solid_point, cell_point, side_lengths[0]);
 					for (size_t l = 0; l < value_size; l++)
 					{
-						local_fluid_values[local_to_global[cell_dofmap[k] + l]] += solid_values[i * value_size + l] * d * side_lengths[0] * side_lengths[1];
+						local_fluid_values[local_to_global[cell_dofmap[k] + l]] += solid_values[i * value_size + l] * param * side_lengths[0] * side_lengths[1];
 					}
 
 				} // end loop inside the cell
@@ -260,6 +266,7 @@ public:
 			// end adjacents loop
 		}
 
+		//////////////////  TODO : this part can use MPI_reduce directly  //////////////////////
 		std::vector<double> fluid_values(global_fluid_size);
 		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
 		dolfin::MPI::all_gather(mesh->mpi_comm(), local_fluid_values, mpi_collect);
@@ -270,7 +277,6 @@ public:
 				fluid_values[i] += mpi_collect[j][i];
 			}
 		}
-
 		return fluid_values;
 	}
 
