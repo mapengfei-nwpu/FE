@@ -50,3 +50,11 @@ npuheart9@fenics:~/FE$ time mpirun -np 8 ./demo_poisson
 real    0m5.712s
 user    0m38.481s
 sys     0m3.334s
+
+
+2019/11/24 00：21
+# 4 初步在fenics的基础上实现了浸没边界法的并行程序，并且得到了正确结果。
+
+1. 对三角形单元实行高斯积分
+2. 实现弹性球示例
+3. 逐步向三维转换
