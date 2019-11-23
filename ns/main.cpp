@@ -14,7 +14,7 @@ class NoslipDomain : public SubDomain
 {
   bool inside(const Array<double> &x, bool on_boundary) const
   {
-    return (on_boundary && (x[1] < 0.0001 || x[1] > 1.0 - 0.0001));
+    return near(x[1], 0) || near(x[1], 0.41);
   }
 };
 
@@ -23,7 +23,7 @@ class InflowDomain : public SubDomain
 {
   bool inside(const Array<double> &x, bool on_boundary) const
   {
-    return x[0] < 0.0001;
+    return near(x[0], 0);
   }
 };
 
@@ -32,46 +32,42 @@ class OutflowDomain : public SubDomain
 {
   bool inside(const Array<double> &x, bool on_boundary) const
   {
-    return x[0] > 10.0 - 0.0001;
+    return near(x[0], 2.2);
   }
 };
 
 // Define pressure boundary value at inflow
-class InflowPressure : public Expression
+class InflowVelocity : public Expression
 {
 public:
   // Constructor
-  InflowPressure() : t(0) {}
+  InflowVelocity() : Expression(2) {}
 
   // Evaluate pressure at inflow
   void eval(Array<double> &values, const Array<double> &x) const
   {
-    values[0] =  10*sin(6.0 * t);
+    values[0] = 4.0 * 1.5 * x[1] * (0.41 - x[1]) / pow(0.41, 2);
+    values[1] = 0.0;
   }
-
-  // Current time
-  double t;
 };
 
 int main()
 {
+  // Create mesh
   Point point0(0, 0, 0);
-  Point point1(10, 1, 0);
-  BoxAdjacents ba({point0, point1}, {320, 32}, CellType::Type::quadrilateral);
-
-  // Load mesh from file
-  // auto mesh = std::make_shared<Mesh>("../lshape.xml.gz");
+  Point point1(2.2, 0.41, 0);
+  BoxAdjacents ba({point0, point1}, {220, 41}, CellType::Type::quadrilateral);
 
   // Create function spaces
   auto V = std::make_shared<VelocityUpdate::FunctionSpace>(ba.mesh());
   auto Q = std::make_shared<PressureUpdate::FunctionSpace>(ba.mesh());
 
   // Set parameter values
-  double dt = 0.01;
-  double T = 3;
+  double dt = 0.001;
+  double T = 5;
 
   // Define values for boundary conditions
-  auto p_in = std::make_shared<InflowPressure>();
+  auto v_in = std::make_shared<InflowVelocity>();
   auto zero = std::make_shared<Constant>(0.0);
   auto zero_vector = std::make_shared<Constant>(0.0, 0.0);
 
@@ -82,10 +78,10 @@ int main()
 
   // Define boundary conditions
   DirichletBC noslip(V, zero_vector, noslip_domain);
-  DirichletBC inflow(Q, p_in, inflow_domain);
+  DirichletBC inflow(V, v_in, inflow_domain);
   DirichletBC outflow(Q, zero, outflow_domain);
-  std::vector<DirichletBC *> bcu = {&noslip};
-  std::vector<DirichletBC *> bcp = {{&inflow, &outflow}};
+  std::vector<DirichletBC *> bcu = {{&noslip,&inflow}};
+  std::vector<DirichletBC *> bcp = {&outflow};
 
   // Create functions
   auto u0 = std::make_shared<Function>(V);
@@ -135,9 +131,6 @@ int main()
   double t = dt;
   while (t < T + DOLFIN_EPS)
   {
-    // Update pressure boundary condition
-    p_in->t = t;
-
     // Compute tentative velocity step
     begin("Computing tentative velocity");
     assemble(b1, L1);

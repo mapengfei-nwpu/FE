@@ -1,0 +1,9 @@
+
+element = VectorElement("Lagrange", quadrilateral, 2)
+
+u = TrialFunction(element)
+v = TestFunction(element)
+
+#    ffc -l dolfin Chanel.ufl
+
+

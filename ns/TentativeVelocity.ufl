@@ -12,7 +12,7 @@ v = TestFunction(V)
 k  = Constant(quadrilateral)
 u0 = Coefficient(V)
 f  = Coefficient(V)
-nu = 0.01
+nu = 0.001
 
 # Define bilinear and linear forms
 eq = (1/k)*inner(u - u0, v)*dx + inner(grad(u0)*u0, v)*dx + \

@@ -1,0 +1,6 @@
+element = VectorElement("Lagrange", triangle, 1)
+
+u = TrialFunction(element)
+v = TestFunction(element)
+
+#    ffc -l dolfin Circle.ufl
