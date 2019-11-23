@@ -1,3 +1,6 @@
+#ifndef __BoxAdjacents_H
+#define __BoxAdjacents_H
+
 #include <iostream>
 #include <dolfin.h>
 using namespace dolfin;
@@ -188,3 +191,4 @@ private:
 	std::vector<std::array<size_t, 2>> global_map;
 	std::shared_ptr<Mesh> mesh_ptr;
 };
+#endif

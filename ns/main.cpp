@@ -1,11 +1,14 @@
 
 // Begin demo
+#include "Circle.h"
+#include "BoxAdjacents.h"
+#include "IBInterpolation.h"
 
 #include <dolfin.h>
 #include "TentativeVelocity.h"
 #include "PressureUpdate.h"
 #include "VelocityUpdate.h"
-#include "BoxAdjacents.h"
+
 
 using namespace dolfin;
 
@@ -53,17 +56,24 @@ public:
 
 int main()
 {
-  // Create mesh
+  // Create chanel mesh
   Point point0(0, 0, 0);
   Point point1(2.2, 0.41, 0);
   BoxAdjacents ba({point0, point1}, {220, 41}, CellType::Type::quadrilateral);
+  DeltaInterplation interpolation(ba);
+
+  // Create circle mesh
+  auto circle = std::make_shared<Mesh>("../circle.xml.gz");
+  auto U = std::make_shared<Circle::FunctionSpace>(circle);
+  auto body_velocity = std::make_shared<Function>(U);
+  auto body_force = std::make_shared<Function>(U);
 
   // Create function spaces
   auto V = std::make_shared<VelocityUpdate::FunctionSpace>(ba.mesh());
   auto Q = std::make_shared<PressureUpdate::FunctionSpace>(ba.mesh());
 
   // Set parameter values
-  double dt = 0.001;
+  double dt = 0.0005;
   double T = 5;
 
   // Define values for boundary conditions
@@ -80,7 +90,7 @@ int main()
   DirichletBC noslip(V, zero_vector, noslip_domain);
   DirichletBC inflow(V, v_in, inflow_domain);
   DirichletBC outflow(Q, zero, outflow_domain);
-  std::vector<DirichletBC *> bcu = {{&noslip,&inflow}};
+  std::vector<DirichletBC *> bcu = {{&noslip, &inflow}};
   std::vector<DirichletBC *> bcp = {&outflow};
 
   // Create functions
@@ -90,7 +100,8 @@ int main()
 
   // Create coefficients
   auto k = std::make_shared<Constant>(dt);
-  auto f = std::make_shared<Constant>(0, 0);
+  auto f = std::make_shared<Function>(V);
+  auto fluid_force = std::make_shared<Function>(V);
 
   // Create forms
   TentativeVelocity::BilinearForm a1(V, V);
@@ -126,11 +137,24 @@ int main()
   // Create files for storing solution
   File ufile("results/velocity.pvd");
   File pfile("results/pressure.pvd");
+  File ffile("results/force.pvd");
 
   // Time-stepping
   double t = dt;
   while (t < T + DOLFIN_EPS)
   {
+    // Interpolate velocity to solid.
+    interpolation.fluid_to_solid(*u1, *body_velocity);
+
+    // calculate body force.
+    *body_force = FunctionAXPY(body_velocity,-1);
+
+    // interpolate force into fluid.
+    interpolation.solid_to_fluid(*f, *body_force);
+
+    // assign force term
+    L1.f = f;
+
     // Compute tentative velocity step
     begin("Computing tentative velocity");
     assemble(b1, L1);
@@ -161,6 +185,7 @@ int main()
     // Save to file
     ufile << *u1;
     pfile << *p1;
+    ffile << *f;
 
     // Move to next time step
     *u0 = *u1;
