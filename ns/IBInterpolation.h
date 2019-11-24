@@ -3,6 +3,27 @@
 #include "BoxAdjacents.h"
 using namespace dolfin;
 
+std::vector<double> my_mpi_gather(std::vector<double> local)
+{
+
+	auto mpi_size = dolfin::MPI::size(MPI_COMM_WORLD);
+
+	/// collect local coordinate_dofs on every process
+	std::vector<std::vector<double>> mpi_collect(mpi_size);
+	dolfin::MPI::all_gather(MPI_COMM_WORLD, local, mpi_collect);
+	std::vector<double> global;
+
+	/// unwrap mpi_dof_coordinates.
+	for (size_t i = 0; i < mpi_collect.size(); i++)
+	{
+		for (size_t j = 0; j < mpi_collect[i].size(); j++)
+		{
+			global.push_back(mpi_collect[i][j]);
+		}
+	}
+	return global;
+}
+
 std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
 {
 	/// some shorcut
@@ -67,12 +88,10 @@ std::vector<double> get_global_dofs(const Function &f)
 
 void get_gauss_rule(
 	const Function &f,
-	std::vector<std::array<double, 2>> &coordinates,
+	std::vector<double> &coordinates,
 	std::vector<double> &values,
 	std::vector<double> &weights)
 {
-
-	double sum = 0.0;
 	// Construct Gauss quadrature rules
 	SimplexQuadrature gq(2, 9);
 	auto mesh = f.function_space()->mesh();
@@ -99,19 +118,16 @@ void get_gauss_rule(
 			f.eval(v, x, *cell, ufc_cell);
 
 			/// push back what we get.
-			coordinates.push_back(coordinate);
+			coordinates.push_back(coordinate[0]);
+			coordinates.push_back(coordinate[1]);
 			weights.push_back(qr.second[i]);
 			values.push_back(v[0]);
 			values.push_back(v[1]);
-			sum += qr.second[i];
 		}
 	}
-
-	std::cout << ". weights.size()" << weights.size()
-			  << ". coordinates.size()" << coordinates.size()
-			  << ". values.size()" << values.size()
-			  << ". whole area:" << sum
-			  << std::endl;
+	values = my_mpi_gather(values);
+	weights = my_mpi_gather(weights);
+	coordinates = my_mpi_gather(coordinates);
 }
 
 class DeltaInterplation
@@ -223,7 +239,7 @@ public:
 		/// calculate global dof coordinates and dofs of solid.
 		/// auto solid_dof_coordinates = get_global_dof_coordinates(solid);
 		/// auto solid_values = get_global_dofs(solid);
-		std::vector<std::array<double, 2>> solid_dof_coordinates;
+		std::vector<double> solid_dof_coordinates;
 		std::vector<double> solid_values;
 		std::vector<double> weights;
 		get_gauss_rule(solid, solid_dof_coordinates, solid_values, weights);
@@ -247,7 +263,7 @@ public:
 	std::vector<double> solid_to_fluid_raw(
 		Function &fluid,
 		std::vector<double> &solid_values,
-		std::vector<std::array<double, 2>> &solid_coordinates,
+		std::vector<double> &solid_coordinates,
 		std::vector<double> &weights)
 	{
 		/// smart shortcut
@@ -273,7 +289,7 @@ public:
 		{
 
 			/// get indices of adjacent cells on fluid mesh.
-			Point solid_point(solid_coordinates[i][0], solid_coordinates[i][1]);
+			Point solid_point(solid_coordinates[2 * i], solid_coordinates[2 * i + 1]);
 			auto adjacents = um.get_adjacents(solid_point);
 
 			/// iterate adjacent cells and collect element nodes in these cells.
@@ -297,9 +313,13 @@ public:
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
 					double param = delta(solid_point, cell_point, hmax / 2);
-					indices_to_delta[cell_dofmap[k]] = delta(solid_point, cell_point, hmax / 2);
+					if (cell_dofmap[k] < fluid.vector()->local_size() && param > 0)
+					{
+						indices_to_delta[cell_dofmap[k]] = param;
+					}
 				}
 			}
+			std::cout<<"dfadfadfdafa:"<<indices_to_delta.size() <<std::endl;
 
 			/// delta distribution.
 			for (auto it = indices_to_delta.begin(); it != indices_to_delta.end(); it++)
