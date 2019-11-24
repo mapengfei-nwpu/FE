@@ -3,15 +3,16 @@
 #include "BoxAdjacents.h"
 using namespace dolfin;
 
-std::vector<double> my_mpi_gather(std::vector<double> local)
+template<typename T>
+std::vector<T> my_mpi_gather(std::vector<T> local)
 {
 
 	auto mpi_size = dolfin::MPI::size(MPI_COMM_WORLD);
 
 	/// collect local coordinate_dofs on every process
-	std::vector<std::vector<double>> mpi_collect(mpi_size);
+	std::vector<std::vector<T>> mpi_collect(mpi_size);
 	dolfin::MPI::all_gather(MPI_COMM_WORLD, local, mpi_collect);
-	std::vector<double> global;
+	std::vector<T> global;
 
 	/// unwrap mpi_dof_coordinates.
 	for (size_t i = 0; i < mpi_collect.size(); i++)
@@ -35,18 +36,9 @@ std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
 	auto local_dof_coordinates = f.function_space()->tabulate_dof_coordinates();
 
 	/// collect local coordinate_dofs on every process
-	std::vector<std::vector<double>> mpi_dof_coordinates(mpi_size);
-	dolfin::MPI::all_gather(mpi_comm, local_dof_coordinates, mpi_dof_coordinates);
-	std::vector<double> dof_coordinates_long;
+	auto dof_coordinates_long = my_mpi_gather(local_dof_coordinates);
 
-	/// unwrap mpi_dof_coordinates.
-	for (size_t i = 0; i < mpi_dof_coordinates.size(); i++)
-	{
-		for (size_t j = 0; j < mpi_dof_coordinates[i].size(); j++)
-		{
-			dof_coordinates_long.push_back(mpi_dof_coordinates[i][j]);
-		}
-	}
+	/// unwrap it.
 	std::vector<std::array<double, 2>> dof_coordinates(dof_coordinates_long.size() / 4);
 	for (size_t i = 0; i < dof_coordinates_long.size(); i += 4)
 	{
@@ -71,18 +63,7 @@ std::vector<double> get_global_dofs(const Function &f)
 	f.vector()->get_local(local_values);
 
 	/// collect local values on every process.
-	std::vector<std::vector<double>> mpi_values(dolfin::MPI::size(mpi_comm));
-	dolfin::MPI::all_gather(mpi_comm, local_values, mpi_values);
-	std::vector<double> values;
-
-	/// unwrap mpi_values.
-	for (size_t i = 0; i < mpi_values.size(); i++)
-	{
-		for (size_t j = 0; j < mpi_values[i].size(); j++)
-		{
-			values.push_back(mpi_values[i][j]);
-		}
-	}
+	auto values = my_mpi_gather(local_values);
 	return values;
 }
 
@@ -109,17 +90,16 @@ void get_gauss_rule(
 		for (size_t i = 0; i < qr.second.size(); i++)
 		{
 			Array<double> v(2);
-			std::array<double, 2> coordinate;
-			Array<double> x(2, coordinate.data());
+			Array<double> x(2);
 
 			/// Call evaluate function
-			coordinate[0] = qr.first[2 * i];
-			coordinate[1] = qr.first[2 * i + 1];
+			x[0] = qr.first[2 * i];
+			x[1] = qr.first[2 * i + 1];
 			f.eval(v, x, *cell, ufc_cell);
 
 			/// push back what we get.
-			coordinates.push_back(coordinate[0]);
-			coordinates.push_back(coordinate[1]);
+			coordinates.push_back(x[0]);
+			coordinates.push_back(x[1]);
 			weights.push_back(qr.second[i]);
 			values.push_back(v[0]);
 			values.push_back(v[1]);
@@ -151,7 +131,7 @@ public:
 		std::vector<double> values(dof_coordinates.size() * 2);
 		fluid_to_solid_raw(fluid, values, dof_coordinates);
 
-		/// collect all body vectors on every processes and
+		/// collect all solid_values vectors on every processes and
 		/// assign them to a function.
 		auto size = solid.vector()->local_size();
 		auto offset = solid.vector()->local_range().first;
@@ -165,12 +145,12 @@ public:
 		solid.vector()->apply("insert");
 	}
 
-	void fluid_to_solid_raw(Function &v, std::vector<double> &body,
+	void fluid_to_solid_raw(Function &v, std::vector<double> &solid_values,
 							std::vector<std::array<double, 2>> &body_coordinates)
 	{
 		/// the meshes of v and um should be the same.
 		/// TODO : compare two meshes
-		dolfin_assert(v.value_size() == body.size() / body_coordinates.size());
+		dolfin_assert(v.value_size() == solid_values.size() / body_coordinates.size());
 
 		/// smart shortcut
 		auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
@@ -178,19 +158,19 @@ public:
 		auto dofmap = v.function_space()->dofmap(); // pointer to a dofmap
 
 		std::cout << "value size: " << v.value_size() << std::endl;
-		std::cout << "value size: " << body.size() << std::endl;
+		std::cout << "value size: " << solid_values.size() << std::endl;
 
-		/// iterate every body coordinate.
-		for (size_t i = 0; i < body.size() / v.value_size(); i++)
+		/// iterate every solid_values coordinate.
+		for (size_t i = 0; i < solid_values.size() / v.value_size(); i++)
 		{
-			/// initialize body to zero.
+			/// initialize solid_values to zero.
 			for (size_t l = 0; l < v.value_size(); l++)
 			{
-				body[i * v.value_size() + l] = 0.0;
+				solid_values[i * v.value_size() + l] = 0.0;
 			}
 
-			Point body_coordinate(body_coordinates[i][0], body_coordinates[i][1]);
-			auto adjacents = um.get_adjacents(body_coordinate);
+			Point solid_coordinates(body_coordinates[i][0], body_coordinates[i][1]);
+			auto adjacents = um.get_adjacents(solid_coordinates);
 			for (size_t j = 0; j < adjacents.size(); j++)
 			{
 
@@ -207,27 +187,27 @@ public:
 				for (size_t k = 0; k < cell_dofmap.size() / v.value_size(); k++)
 				{
 					Point on_cell(coordinates[k][0], coordinates[k][1]);
-					double d = delta(body_coordinate, on_cell, side_lengths[0] / 2.0);
+					double d = delta(solid_coordinates, on_cell, side_lengths[0] / 2.0);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
 						/// every rectangle is divided into 9 parts.
-						body[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 9;
+						solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 9;
 					}
 
 				} // end loop inside the cell
 			}
 			// end adjacents loop
 		}
-		////////////////////////// gather body on one processor //////////////////////////
+		////////////////////////// gather solid_values on one processor //////////////////////////
 		//////////////////  TODO : this part can use MPI_reduce directly  ////////////////
 		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
-		dolfin::MPI::all_gather(mesh->mpi_comm(), body, mpi_collect);
-		for (size_t i = 0; i < body.size(); i++)
+		dolfin::MPI::all_gather(mesh->mpi_comm(), solid_values, mpi_collect);
+		for (size_t i = 0; i < solid_values.size(); i++)
 		{
-			body[i] = 0;
+			solid_values[i] = 0;
 			for (size_t j = 0; j < mpi_collect.size(); j++)
 			{
-				body[i] += mpi_collect[j][i];
+				solid_values[i] += mpi_collect[j][i];
 			}
 		}
 		//////////////////////////////////////////////////////////////////////////////////
@@ -284,7 +264,7 @@ public:
 		/// initial local fluid values.
 		std::vector<double> local_fluid_values(global_fluid_size);
 
-		/// iterate every body coordinate.
+		/// iterate every solid_values coordinate.
 		for (size_t i = 0; i < solid_values.size() / value_size; i++)
 		{
 
@@ -319,7 +299,6 @@ public:
 					}
 				}
 			}
-			std::cout<<"dfadfadfdafa:"<<indices_to_delta.size() <<std::endl;
 
 			/// delta distribution.
 			for (auto it = indices_to_delta.begin(); it != indices_to_delta.end(); it++)
