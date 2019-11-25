@@ -14,8 +14,8 @@ public:
 	xplusy() : Expression(2) {}
 	void eval(Array<double> &values, const Array<double> &x) const
 	{
-		values[0] = 1.0;
-		values[1] = 1.0;
+		values[0] = x[0];
+		values[1] = x[1];
 	}
 };
 
@@ -28,12 +28,12 @@ int main()
 	auto V = std::make_shared<Chanel::FunctionSpace>(box.mesh());
 	auto g = std::make_shared<xplusy>();
 	Function v(V);
+	v.interpolate(*g);
 
 	/// Load mesh from file.
 	auto circle = std::make_shared<Mesh>("./circle.xml.gz");
 	auto U = std::make_shared<Circle::FunctionSpace>(circle);
 	Function u(U);
-	u.interpolate(*g);
 
 	/// print mesh size
 	/// solid mesh should be finer than chanel mesh
@@ -42,18 +42,9 @@ int main()
 
 	/// Interpolate the mesh.
 	DeltaInterplation interpolation(box);
-	interpolation.solid_to_fluid(v, u);
+	interpolation.fluid_to_solid(v, u);
 	// u.interpolate(*g);
 
 	File file("fluid.pvd");
-	file << v;
-
-	SimplexQuadrature gq(2, 9);
-	Point p2(0.4, 0.0, 0);
-	std::vector<Point> tri = {p0, p1, p2};
-	auto gsqr = gq.compute_quadrature_rule(tri, 2);
-	for (size_t i = 0; i < gsqr.second.size(); i++)
-	{
-		std::cout << gsqr.second[i] << std::endl;
-	}
+	file << u;
 }
