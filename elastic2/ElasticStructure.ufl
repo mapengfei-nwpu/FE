@@ -1,0 +1,33 @@
+# Scaled variables
+mu = 1
+beta = 1.25
+lambda_ = beta
+
+# define function element
+V = VectorElement("P", triangle, 1)
+
+# Define strain and stress
+def epsilon(u):
+    return 0.5*(nabla_grad(u) + nabla_grad(u).T)
+
+def sigma(u):
+    return lambda_*div(u)*Identity(2) + 2*mu*epsilon(u)
+
+# Define variational problem
+u = TrialFunction(V)
+v = TestFunction(V)
+
+# body force and tranction force. (zero ususlly)
+f = Coefficient(V)
+
+# tranction force. (input fluid velocity and pressure)
+Q = FiniteElement("P", triangle, 1)
+p_f = Coefficient(Q)
+u_f = Coefficient(V)
+n = FacetNormal(triangle)
+mu_f = 0.1
+T = - p_f*n + 2*mu_f*epsilon(u_f)*n
+
+# variational form
+a = inner(sigma(u), epsilon(v))*dx
+L = dot(f, v)*dx + dot(T, v)*ds

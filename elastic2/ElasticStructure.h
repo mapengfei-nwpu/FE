@@ -2660,56 +2660,161 @@ return enabled;
     // num_cells:         None
     // optimize:          True
     // precision:         16
-    // quadrature_degree: 2
+    // quadrature_degree: 0
     // quadrature_rule:   'default'
     // representation:    'uflacs'
     // 
     // and the following integral 0 metadata:
     // 
-    // estimated_polynomial_degree: 2
+    // estimated_polynomial_degree: 0
     // optimize:                    True
     // precision:                   16
-    // quadrature_degree:           2
+    // quadrature_degree:           0
     // quadrature_rule:             'default'
     // representation:              'uflacs'
     // Precomputed values of basis functions and precomputations
     // FE* dimensions: [entities][points][dofs]
     // PI* dimensions: [entities][dofs][dofs] or [entities][dofs]
     // PM* dimensions: [entities][dofs][dofs]
-    alignas(32) static const double FE7_C0_D01_Q3[1][1][2] = { { { -1.0, 1.0 } } };
+    alignas(32) static const double FE11_C0_D01_Q1[1][1][2] = { { { -1.0, 1.0 } } };
     // Unstructured piecewise computations
-    const double J_c0 = coordinate_dofs[0] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[2] * FE7_C0_D01_Q3[0][0][1];
-    const double J_c3 = coordinate_dofs[1] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[5] * FE7_C0_D01_Q3[0][0][1];
-    const double J_c1 = coordinate_dofs[0] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[4] * FE7_C0_D01_Q3[0][0][1];
-    const double J_c2 = coordinate_dofs[1] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[3] * FE7_C0_D01_Q3[0][0][1];
-    alignas(32) double sp[4];
+    const double J_c0 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[2] * FE11_C0_D01_Q1[0][0][1];
+    const double J_c3 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[5] * FE11_C0_D01_Q1[0][0][1];
+    const double J_c1 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[4] * FE11_C0_D01_Q1[0][0][1];
+    const double J_c2 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[3] * FE11_C0_D01_Q1[0][0][1];
+    alignas(32) double sp[96];
     sp[0] = J_c0 * J_c3;
     sp[1] = J_c1 * J_c2;
     sp[2] = sp[0] + -1 * sp[1];
-    sp[3] = std::abs(sp[2]);
-    A[0] = 0.08333333333333338 * sp[3];
-    A[1] = 0.04166666666666666 * sp[3];
-    A[2] = 0.04166666666666667 * sp[3];
-    std::fill(A + 3, A + 6, 0.0);
-    A[6] = 0.04166666666666666 * sp[3];
-    A[7] = 0.08333333333333333 * sp[3];
-    A[8] = 0.04166666666666665 * sp[3];
-    std::fill(A + 9, A + 12, 0.0);
-    A[12] = 0.04166666666666667 * sp[3];
-    A[13] = 0.04166666666666665 * sp[3];
-    A[14] = 0.08333333333333329 * sp[3];
-    std::fill(A + 15, A + 21, 0.0);
-    A[21] = 0.08333333333333338 * sp[3];
-    A[22] = 0.04166666666666666 * sp[3];
-    A[23] = 0.04166666666666667 * sp[3];
-    std::fill(A + 24, A + 27, 0.0);
-    A[27] = 0.04166666666666666 * sp[3];
-    A[28] = 0.08333333333333333 * sp[3];
-    A[29] = 0.04166666666666665 * sp[3];
-    std::fill(A + 30, A + 33, 0.0);
-    A[33] = 0.04166666666666667 * sp[3];
-    A[34] = 0.04166666666666665 * sp[3];
-    A[35] = 0.08333333333333329 * sp[3];
+    sp[3] = J_c0 / sp[2];
+    sp[4] = -1 * J_c1 / sp[2];
+    sp[5] = J_c3 / sp[2];
+    sp[6] = -1 * J_c2 / sp[2];
+    sp[7] = sp[3] + sp[3];
+    sp[8] = sp[4] + sp[4];
+    sp[9] = 2 * (0.5 * sp[7]) + 1.25 * sp[3];
+    sp[10] = 2 * (0.5 * sp[8]) + 1.25 * sp[4];
+    sp[11] = sp[9] * (0.5 * sp[7]);
+    sp[12] = sp[9] * (0.5 * sp[8]);
+    sp[13] = sp[10] * (0.5 * sp[7]);
+    sp[14] = sp[10] * (0.5 * sp[8]);
+    sp[15] = 0.5 * sp[7] * (1.25 * sp[5]);
+    sp[16] = 0.5 * sp[8] * (1.25 * sp[5]);
+    sp[17] = 0.5 * sp[7] * (1.25 * sp[6]);
+    sp[18] = 0.5 * sp[8] * (1.25 * sp[6]);
+    sp[19] = 2 * (0.5 * sp[6]) * (0.5 * sp[6]);
+    sp[20] = 2 * (0.5 * sp[5]) * (0.5 * sp[6]);
+    sp[21] = 2 * (0.5 * sp[4]) * (0.5 * sp[6]);
+    sp[22] = 2 * (0.5 * sp[3]) * (0.5 * sp[6]);
+    sp[23] = 2 * (0.5 * sp[6]) * (0.5 * sp[5]);
+    sp[24] = 2 * (0.5 * sp[5]) * (0.5 * sp[5]);
+    sp[25] = 2 * (0.5 * sp[4]) * (0.5 * sp[5]);
+    sp[26] = 2 * (0.5 * sp[3]) * (0.5 * sp[5]);
+    sp[27] = 2 * (0.5 * sp[6]) * (0.5 * sp[3]);
+    sp[28] = 2 * (0.5 * sp[5]) * (0.5 * sp[3]);
+    sp[29] = 2 * (0.5 * sp[4]) * (0.5 * sp[3]);
+    sp[30] = 2 * (0.5 * sp[3]) * (0.5 * sp[3]);
+    sp[31] = 2 * (0.5 * sp[6]) * (0.5 * sp[4]);
+    sp[32] = 2 * (0.5 * sp[5]) * (0.5 * sp[4]);
+    sp[33] = 2 * (0.5 * sp[4]) * (0.5 * sp[4]);
+    sp[34] = 2 * (0.5 * sp[3]) * (0.5 * sp[4]);
+    sp[35] = sp[11] + sp[19];
+    sp[36] = sp[12] + sp[23];
+    sp[37] = sp[13] + sp[20];
+    sp[38] = sp[14] + sp[24];
+    sp[39] = sp[15] + sp[21];
+    sp[40] = sp[25] + sp[16];
+    sp[41] = sp[22] + sp[17];
+    sp[42] = sp[26] + sp[18];
+    sp[43] = sp[5] + sp[5];
+    sp[44] = sp[6] + sp[6];
+    sp[45] = 2 * (0.5 * sp[43]) + 1.25 * sp[5];
+    sp[46] = 2 * (0.5 * sp[44]) + 1.25 * sp[6];
+    sp[47] = 0.5 * sp[44] * (1.25 * sp[3]);
+    sp[48] = 0.5 * sp[43] * (1.25 * sp[3]);
+    sp[49] = 0.5 * sp[44] * (1.25 * sp[4]);
+    sp[50] = 0.5 * sp[43] * (1.25 * sp[4]);
+    sp[51] = sp[45] * (0.5 * sp[44]);
+    sp[52] = sp[45] * (0.5 * sp[43]);
+    sp[53] = sp[46] * (0.5 * sp[44]);
+    sp[54] = sp[46] * (0.5 * sp[43]);
+    sp[55] = sp[27] + sp[47];
+    sp[56] = sp[48] + sp[31];
+    sp[57] = sp[28] + sp[49];
+    sp[58] = sp[32] + sp[50];
+    sp[59] = sp[51] + sp[29];
+    sp[60] = sp[52] + sp[33];
+    sp[61] = sp[53] + sp[30];
+    sp[62] = sp[54] + sp[34];
+    sp[63] = sp[35] + sp[19];
+    sp[64] = sp[36] + sp[23];
+    sp[65] = sp[55] + sp[27];
+    sp[66] = sp[56] + sp[31];
+    sp[67] = sp[37] + sp[20];
+    sp[68] = sp[38] + sp[24];
+    sp[69] = sp[57] + sp[28];
+    sp[70] = sp[58] + sp[32];
+    sp[71] = sp[39] + sp[21];
+    sp[72] = sp[40] + sp[25];
+    sp[73] = sp[59] + sp[29];
+    sp[74] = sp[60] + sp[33];
+    sp[75] = sp[41] + sp[22];
+    sp[76] = sp[42] + sp[26];
+    sp[77] = sp[61] + sp[30];
+    sp[78] = sp[62] + sp[34];
+    sp[79] = std::abs(sp[2]);
+    sp[80] = sp[63] * sp[79];
+    sp[81] = sp[64] * sp[79];
+    sp[82] = sp[65] * sp[79];
+    sp[83] = sp[66] * sp[79];
+    sp[84] = sp[67] * sp[79];
+    sp[85] = sp[68] * sp[79];
+    sp[86] = sp[69] * sp[79];
+    sp[87] = sp[70] * sp[79];
+    sp[88] = sp[71] * sp[79];
+    sp[89] = sp[72] * sp[79];
+    sp[90] = sp[73] * sp[79];
+    sp[91] = sp[74] * sp[79];
+    sp[92] = sp[75] * sp[79];
+    sp[93] = sp[76] * sp[79];
+    sp[94] = sp[77] * sp[79];
+    sp[95] = sp[78] * sp[79];
+    A[0] = 0.5 * sp[91] + 0.5 * sp[95] + 0.5 * sp[90] + 0.5 * sp[94];
+    A[1] = -0.5 * sp[91] + -0.5 * sp[90];
+    A[2] = -0.5 * sp[95] + -0.5 * sp[94];
+    A[3] = 0.5 * sp[87] + 0.5 * sp[83] + 0.5 * sp[86] + 0.5 * sp[82];
+    A[4] = -0.5 * sp[87] + -0.5 * sp[86];
+    A[5] = -0.5 * sp[83] + -0.5 * sp[82];
+    A[6] = -0.5 * sp[91] + -0.5 * sp[95];
+    A[7] = 0.5 * sp[91];
+    A[8] = 0.5 * sp[95];
+    A[9] = -0.5 * sp[87] + -0.5 * sp[83];
+    A[10] = 0.5 * sp[87];
+    A[11] = 0.5 * sp[83];
+    A[12] = -0.5 * sp[90] + -0.5 * sp[94];
+    A[13] = 0.5 * sp[90];
+    A[14] = 0.5 * sp[94];
+    A[15] = -0.5 * sp[86] + -0.5 * sp[82];
+    A[16] = 0.5 * sp[86];
+    A[17] = 0.5 * sp[82];
+    A[18] = 0.5 * sp[89] + 0.5 * sp[93] + 0.5 * sp[88] + 0.5 * sp[92];
+    A[19] = -0.5 * sp[89] + -0.5 * sp[88];
+    A[20] = -0.5 * sp[93] + -0.5 * sp[92];
+    A[21] = 0.5 * sp[85] + 0.5 * sp[81] + 0.5 * sp[84] + 0.5 * sp[80];
+    A[22] = -0.5 * sp[85] + -0.5 * sp[84];
+    A[23] = -0.5 * sp[81] + -0.5 * sp[80];
+    A[24] = -0.5 * sp[89] + -0.5 * sp[93];
+    A[25] = 0.5 * sp[89];
+    A[26] = 0.5 * sp[93];
+    A[27] = -0.5 * sp[85] + -0.5 * sp[81];
+    A[28] = 0.5 * sp[85];
+    A[29] = 0.5 * sp[81];
+    A[30] = -0.5 * sp[88] + -0.5 * sp[92];
+    A[31] = 0.5 * sp[88];
+    A[32] = 0.5 * sp[92];
+    A[33] = -0.5 * sp[84] + -0.5 * sp[80];
+    A[34] = 0.5 * sp[84];
+    A[35] = 0.5 * sp[80];
   }
 
 };
@@ -2731,7 +2836,7 @@ public:
 
   const std::vector<bool> & enabled_coefficients() const final override
   {
-static const std::vector<bool> enabled({true});
+static const std::vector<bool> enabled({true, false, false});
 return enabled;
   }
 
@@ -2746,90 +2851,221 @@ return enabled;
     // num_cells:         None
     // optimize:          True
     // precision:         16
-    // quadrature_degree: 0
+    // quadrature_degree: 2
     // quadrature_rule:   'default'
     // representation:    'uflacs'
     // 
     // and the following integral 0 metadata:
     // 
-    // estimated_polynomial_degree: 0
+    // estimated_polynomial_degree: 2
     // optimize:                    True
     // precision:                   16
-    // quadrature_degree:           0
+    // quadrature_degree:           2
     // quadrature_rule:             'default'
     // representation:              'uflacs'
+    // Quadrature rules
+    alignas(32) static const double weights3[3] = { 0.1666666666666667, 0.1666666666666667, 0.1666666666666667 };
     // Precomputed values of basis functions and precomputations
     // FE* dimensions: [entities][points][dofs]
     // PI* dimensions: [entities][dofs][dofs] or [entities][dofs]
     // PM* dimensions: [entities][dofs][dofs]
-    alignas(32) static const double FE11_C0_D01_Q1[1][1][2] = { { { -1.0, 1.0 } } };
+    alignas(32) static const double FE7_C0_D01_Q3[1][1][2] = { { { -1.0, 1.0 } } };
+    alignas(32) static const double FE7_C0_Q3[1][3][3] =
+        { { { 0.6666666666666669, 0.1666666666666666, 0.1666666666666667 },
+            { 0.1666666666666667, 0.1666666666666666, 0.6666666666666665 },
+            { 0.1666666666666667, 0.6666666666666666, 0.1666666666666666 } } };
     // Unstructured piecewise computations
-    const double w0_d1_c0 = w[0][0] * FE11_C0_D01_Q1[0][0][0] + w[0][2] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c0 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[2] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c3 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[5] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c1 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[4] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c2 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[3] * FE11_C0_D01_Q1[0][0][1];
-    double w0_d0_c0 = 0.0;
+    const double J_c0 = coordinate_dofs[0] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[2] * FE7_C0_D01_Q3[0][0][1];
+    const double J_c3 = coordinate_dofs[1] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[5] * FE7_C0_D01_Q3[0][0][1];
+    const double J_c1 = coordinate_dofs[0] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[4] * FE7_C0_D01_Q3[0][0][1];
+    const double J_c2 = coordinate_dofs[1] * FE7_C0_D01_Q3[0][0][0] + coordinate_dofs[3] * FE7_C0_D01_Q3[0][0][1];
+    alignas(32) double sp[4];
+    sp[0] = J_c0 * J_c3;
+    sp[1] = J_c1 * J_c2;
+    sp[2] = sp[0] + -1 * sp[1];
+    sp[3] = std::abs(sp[2]);
+    alignas(32) double BF0[3] = {};
+    alignas(32) double BF1[3] = {};
+    for (int iq = 0; iq < 3; ++iq)
+    {
+        // Quadrature loop body setup (num_points=3)
+        // Unstructured varying computations for num_points=3
+        double w0_c0 = 0.0;
+        for (int ic = 0; ic < 3; ++ic)
+            w0_c0 += w[0][ic] * FE7_C0_Q3[0][iq][ic];
+        double w0_c1 = 0.0;
+        for (int ic = 0; ic < 3; ++ic)
+            w0_c1 += w[0][ic + 3] * FE7_C0_Q3[0][iq][ic];
+        alignas(32) double sv3[2];
+        sv3[0] = w0_c0 * sp[3];
+        sv3[1] = w0_c1 * sp[3];
+        const double fw0 = sv3[0] * weights3[iq];
+        for (int i = 0; i < 3; ++i)
+            BF0[i] += fw0 * FE7_C0_Q3[0][iq][i];
+        const double fw1 = sv3[1] * weights3[iq];
+        for (int i = 0; i < 3; ++i)
+            BF1[i] += fw1 * FE7_C0_Q3[0][iq][i];
+    }
+    std::fill(A, A + 6, 0.0);
+    for (int i = 0; i < 3; ++i)
+        A[i] += BF0[i];
+    for (int i = 0; i < 3; ++i)
+        A[i + 3] += BF1[i];
+  }
+
+};
+
+
+class elasticstructure_exterior_facet_integral_1_otherwise: public ufc::exterior_facet_integral
+{
+public:
+
+  elasticstructure_exterior_facet_integral_1_otherwise() : ufc::exterior_facet_integral()
+  {
+
+  }
+
+  ~elasticstructure_exterior_facet_integral_1_otherwise() override
+  {
+
+  }
+
+  const std::vector<bool> & enabled_coefficients() const final override
+  {
+static const std::vector<bool> enabled({false, true, true});
+return enabled;
+  }
+
+  void tabulate_tensor(double * A,
+                       const double * const * w,
+                       const double * coordinate_dofs,
+                       std::size_t facet,
+                       int cell_orientation) const final override
+  {
+    // This function was generated using 'uflacs' representation
+    // with the following integrals metadata:
+    // 
+    // num_cells:         None
+    // optimize:          True
+    // precision:         16
+    // quadrature_degree: 2
+    // quadrature_rule:   'default'
+    // representation:    'uflacs'
+    // 
+    // and the following integral 0 metadata:
+    // 
+    // estimated_polynomial_degree: 2
+    // optimize:                    True
+    // precision:                   16
+    // quadrature_degree:           2
+    // quadrature_rule:             'default'
+    // representation:              'uflacs'
+    // Quadrature rules
+    alignas(32) static const double weights2[2] = { 0.5, 0.5 };
+    // Precomputed values of basis functions and precomputations
+    // FE* dimensions: [entities][points][dofs]
+    // PI* dimensions: [entities][dofs][dofs] or [entities][dofs]
+    // PM* dimensions: [entities][dofs][dofs]
+    alignas(32) static const double FE10_C0_D01_F_Q2[1][1][2] = { { { -1.0, 1.0 } } };
+    alignas(32) static const double FE10_C0_F_Q2[3][2][3] =
+        { { { 0.0, 0.7886751345948129, 0.2113248654051871 },
+            { 0.0, 0.2113248654051872, 0.7886751345948129 } },
+          { { 0.7886751345948129, 0.0, 0.2113248654051871 },
+            { 0.2113248654051872, 0.0, 0.7886751345948129 } },
+          { { 0.7886751345948129, 0.2113248654051871, 0.0 },
+            { 0.2113248654051871, 0.7886751345948129, 0.0 } } };
+    // Unstructured piecewise computations
+    const double w2_d1_c1 = w[2][3] * FE10_C0_D01_F_Q2[0][0][0] + w[2][5] * FE10_C0_D01_F_Q2[0][0][1];
+    const double J_c0 = coordinate_dofs[0] * FE10_C0_D01_F_Q2[0][0][0] + coordinate_dofs[2] * FE10_C0_D01_F_Q2[0][0][1];
+    const double J_c3 = coordinate_dofs[1] * FE10_C0_D01_F_Q2[0][0][0] + coordinate_dofs[5] * FE10_C0_D01_F_Q2[0][0][1];
+    const double J_c1 = coordinate_dofs[0] * FE10_C0_D01_F_Q2[0][0][0] + coordinate_dofs[4] * FE10_C0_D01_F_Q2[0][0][1];
+    const double J_c2 = coordinate_dofs[1] * FE10_C0_D01_F_Q2[0][0][0] + coordinate_dofs[3] * FE10_C0_D01_F_Q2[0][0][1];
+    double w2_d0_c1 = 0.0;
     for (int ic = 0; ic < 2; ++ic)
-        w0_d0_c0 += w[0][ic] * FE11_C0_D01_Q1[0][0][ic];
-    double w0_d0_c1 = 0.0;
+        w2_d0_c1 += w[2][ic + 3] * FE10_C0_D01_F_Q2[0][0][ic];
+    const double w2_d1_c0 = w[2][0] * FE10_C0_D01_F_Q2[0][0][0] + w[2][2] * FE10_C0_D01_F_Q2[0][0][1];
+    double w2_d0_c0 = 0.0;
     for (int ic = 0; ic < 2; ++ic)
-        w0_d0_c1 += w[0][ic + 3] * FE11_C0_D01_Q1[0][0][ic];
-    const double w0_d1_c1 = w[0][3] * FE11_C0_D01_Q1[0][0][0] + w[0][5] * FE11_C0_D01_Q1[0][0][1];
-    alignas(32) double sp[47];
+        w2_d0_c0 += w[2][ic] * FE10_C0_D01_F_Q2[0][0][ic];
+    alignas(32) double sp[50];
     sp[0] = J_c0 * J_c3;
     sp[1] = J_c1 * J_c2;
     sp[2] = sp[0] + -1 * sp[1];
     sp[3] = J_c0 / sp[2];
-    sp[4] = w0_d1_c0 * sp[3];
+    sp[4] = w2_d1_c1 * sp[3];
     sp[5] = -1 * J_c1 / sp[2];
-    sp[6] = w0_d0_c0 * sp[5];
+    sp[6] = w2_d0_c1 * sp[5];
     sp[7] = sp[4] + sp[6];
-    sp[8] = J_c3 / sp[2];
-    sp[9] = w0_d0_c1 * sp[8];
-    sp[10] = -1 * J_c2 / sp[2];
-    sp[11] = w0_d1_c1 * sp[10];
-    sp[12] = sp[9] + sp[11];
-    sp[13] = w0_d1_c1 * sp[3];
-    sp[14] = w0_d0_c1 * sp[5];
-    sp[15] = sp[13] + sp[14];
-    sp[16] = w0_d0_c0 * sp[8];
-    sp[17] = w0_d1_c0 * sp[10];
-    sp[18] = sp[16] + sp[17];
-    sp[19] = (1 + 0.0005 * sp[15]) * (1 + 0.0005 * sp[18]);
-    sp[20] = 0.0005 * sp[7] * (0.0005 * sp[12]);
-    sp[21] = sp[19] + -1 * sp[20];
-    sp[22] = -1 * (0.0005 * sp[12]) / sp[21];
-    sp[23] = 0.1 * (0.0005 * sp[7]) + -1 * (0.1 * sp[22]);
-    sp[24] = sp[23] * sp[3];
-    sp[25] = sp[23] * sp[5];
-    sp[26] = (1 + 0.0005 * sp[18]) / sp[21];
-    sp[27] = 0.1 * (1 + 0.0005 * sp[15]) + -1 * (0.1 * sp[26]);
-    sp[28] = sp[27] * sp[3];
-    sp[29] = sp[27] * sp[5];
-    sp[30] = (1 + 0.0005 * sp[15]) / sp[21];
-    sp[31] = 0.1 * (1 + 0.0005 * sp[18]) + -1 * (0.1 * sp[30]);
-    sp[32] = sp[31] * sp[10];
-    sp[33] = sp[31] * sp[8];
-    sp[34] = -1 * (0.0005 * sp[7]) / sp[21];
-    sp[35] = 0.1 * (0.0005 * sp[12]) + -1 * (0.1 * sp[34]);
-    sp[36] = sp[35] * sp[10];
-    sp[37] = sp[35] * sp[8];
-    sp[38] = sp[24] + sp[32];
-    sp[39] = sp[33] + sp[25];
-    sp[40] = sp[28] + sp[36];
-    sp[41] = sp[37] + sp[29];
-    sp[42] = std::abs(sp[2]);
-    sp[43] = -1 * sp[38] * sp[42];
-    sp[44] = -1 * sp[39] * sp[42];
-    sp[45] = -1 * sp[40] * sp[42];
-    sp[46] = -1 * sp[41] * sp[42];
-    A[0] = -0.5 * sp[44] + -0.5 * sp[43];
-    A[1] = 0.5 * sp[44];
-    A[2] = 0.5 * sp[43];
-    A[3] = -0.5 * sp[46] + -0.5 * sp[45];
-    A[4] = 0.5 * sp[46];
-    A[5] = 0.5 * sp[45];
+    sp[8] = sp[7] + sp[7];
+    sp[9] = triangle_reference_facet_normals[facet][1] * sp[3];
+    sp[10] = triangle_reference_facet_normals[facet][0] * sp[5];
+    sp[11] = sp[9] + sp[10];
+    sp[12] = sp[11] * sp[11];
+    sp[13] = J_c3 / sp[2];
+    sp[14] = triangle_reference_facet_normals[facet][0] * sp[13];
+    sp[15] = -1 * J_c2 / sp[2];
+    sp[16] = triangle_reference_facet_normals[facet][1] * sp[15];
+    sp[17] = sp[14] + sp[16];
+    sp[18] = sp[17] * sp[17];
+    sp[19] = sp[12] + sp[18];
+    sp[20] = std::sqrt(sp[19]);
+    sp[21] = sp[11] / sp[20];
+    sp[22] = 0.2 * (0.5 * sp[8]) * sp[21];
+    sp[23] = w2_d1_c0 * sp[3];
+    sp[24] = w2_d0_c0 * sp[5];
+    sp[25] = sp[23] + sp[24];
+    sp[26] = w2_d0_c1 * sp[13];
+    sp[27] = w2_d1_c1 * sp[15];
+    sp[28] = sp[26] + sp[27];
+    sp[29] = sp[25] + sp[28];
+    sp[30] = sp[17] / sp[20];
+    sp[31] = 0.2 * (0.5 * sp[29]) * sp[30];
+    sp[32] = sp[22] + sp[31];
+    sp[33] = 0.2 * (0.5 * sp[29]) * sp[21];
+    sp[34] = w2_d0_c0 * sp[13];
+    sp[35] = w2_d1_c0 * sp[15];
+    sp[36] = sp[34] + sp[35];
+    sp[37] = sp[36] + sp[36];
+    sp[38] = 0.2 * (0.5 * sp[37]) * sp[30];
+    sp[39] = sp[33] + sp[38];
+    sp[40] = J_c0 * triangle_reference_facet_jacobian[facet][0][0];
+    sp[41] = J_c1 * triangle_reference_facet_jacobian[facet][1][0];
+    sp[42] = sp[40] + sp[41];
+    sp[43] = sp[42] * sp[42];
+    sp[44] = triangle_reference_facet_jacobian[facet][0][0] * J_c2;
+    sp[45] = triangle_reference_facet_jacobian[facet][1][0] * J_c3;
+    sp[46] = sp[44] + sp[45];
+    sp[47] = sp[46] * sp[46];
+    sp[48] = sp[43] + sp[47];
+    sp[49] = std::sqrt(sp[48]);
+    alignas(32) double BF0[3] = {};
+    alignas(32) double BF1[3] = {};
+    for (int iq = 0; iq < 2; ++iq)
+    {
+        // Quadrature loop body setup (num_points=2)
+        // Unstructured varying computations for num_points=2
+        double w1 = 0.0;
+        for (int ic = 0; ic < 3; ++ic)
+            w1 += w[1][ic] * FE10_C0_F_Q2[facet][iq][ic];
+        alignas(32) double sv2[6];
+        sv2[0] = -1 * w1 * sp[21];
+        sv2[1] = sp[32] + sv2[0];
+        sv2[2] = -1 * w1 * sp[30];
+        sv2[3] = sp[39] + sv2[2];
+        sv2[4] = sv2[1] * sp[49];
+        sv2[5] = sv2[3] * sp[49];
+        const double fw0 = sv2[5] * weights2[iq];
+        for (int i = 0; i < 3; ++i)
+            BF0[i] += fw0 * FE10_C0_F_Q2[facet][iq][i];
+        const double fw1 = sv2[4] * weights2[iq];
+        for (int i = 0; i < 3; ++i)
+            BF1[i] += fw1 * FE10_C0_F_Q2[facet][iq][i];
+    }
+    std::fill(A, A + 6, 0.0);
+    for (int i = 0; i < 3; ++i)
+        A[i] += BF0[i];
+    for (int i = 0; i < 3; ++i)
+        A[i + 3] += BF1[i];
   }
 
 };
@@ -2851,7 +3087,7 @@ public:
 
   const char * signature() const final override
   {
-    return "c08cc08d66de0581b6ae0ebcfba13e37276fa5be9cd6c2faedea4eba16a9b37e1cac5b7d1ab55dab83172339e5ce841b7440b615ff2bf24f4261c619e1f13615";
+    return "872cc1752a81292e8e0eea19f469bdead19db835e247ccd0d82e0b4c31300d7b940d13ec55904dce2bacf05190520b39cb0c72919753018f7f5adf28b32ceda1";
   }
 
   std::size_t rank() const final override
@@ -3090,7 +3326,7 @@ public:
 
   const char * signature() const final override
   {
-    return "7bf327a259a7782b23fc12390486e09539668e84826ab839d4779df82732fbd00fd6239d840badee4287bef6a4fc92f08038977f41e5da04e8747267eddc4ee7";
+    return "d8885fae6b44c6144d666ff5b92cc8015ce5eaa45d59cdf26a4077658d8d1218397fa0f0e8ac013ad0fc0350bd268cea95735e202bda1279c6902ce7e1f113ca";
   }
 
   std::size_t rank() const final override
@@ -3100,16 +3336,16 @@ public:
 
   std::size_t num_coefficients() const final override
   {
-    return 1;
+    return 3;
   }
 
   std::size_t original_coefficient_position(std::size_t i) const final override
   {
-    if (i >= 1)
+    if (i >= 3)
     {
         throw std::runtime_error("Invalid original coefficient index.");
     }
-    static const std::vector<std::size_t> position = {0};
+    static const std::vector<std::size_t> position = {0, 1, 2};
     return position[i];
   }
 
@@ -3136,6 +3372,10 @@ public:
         return new elasticstructure_finite_element_1();
     case 1:
         return new elasticstructure_finite_element_1();
+    case 2:
+        return new elasticstructure_finite_element_0();
+    case 3:
+        return new elasticstructure_finite_element_1();
     default:
         return nullptr;
     }
@@ -3148,6 +3388,10 @@ public:
     case 0:
         return new elasticstructure_dofmap_1();
     case 1:
+        return new elasticstructure_dofmap_1();
+    case 2:
+        return new elasticstructure_dofmap_0();
+    case 3:
         return new elasticstructure_dofmap_1();
     default:
         return nullptr;
@@ -3201,7 +3445,7 @@ public:
 
   bool has_exterior_facet_integrals() const final override
   {
-    return false;
+    return true;
   }
 
   bool has_interior_facet_integrals() const final override
@@ -3281,7 +3525,7 @@ public:
 
   ufc::exterior_facet_integral * create_default_exterior_facet_integral() const final override
   {
-    return nullptr;
+    return new elasticstructure_exterior_facet_integral_1_otherwise();
   }
 
   ufc::interior_facet_integral * create_default_interior_facet_integral() const final override
@@ -3341,12 +3585,12 @@ public:
 namespace ElasticStructure
 {
 
-class CoefficientSpace_u: public dolfin::FunctionSpace
+class CoefficientSpace_f: public dolfin::FunctionSpace
 {
 public:
 
   // Constructor for standard function space
-  CoefficientSpace_u(std::shared_ptr<const dolfin::Mesh> mesh):
+  CoefficientSpace_f(std::shared_ptr<const dolfin::Mesh> mesh):
     dolfin::FunctionSpace(mesh,
                           std::make_shared<const dolfin::FiniteElement>(std::make_shared<elasticstructure_finite_element_1>()),
                           std::make_shared<const dolfin::DofMap>(std::make_shared<elasticstructure_dofmap_1>(), *mesh))
@@ -3355,7 +3599,55 @@ public:
   }
 
   // Constructor for constrained function space
-  CoefficientSpace_u(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
+  CoefficientSpace_f(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
+    dolfin::FunctionSpace(mesh,
+                          std::make_shared<const dolfin::FiniteElement>(std::make_shared<elasticstructure_finite_element_1>()),
+                          std::make_shared<const dolfin::DofMap>(std::make_shared<elasticstructure_dofmap_1>(), *mesh, constrained_domain))
+  {
+    // Do nothing
+  }
+
+};
+
+class CoefficientSpace_p_f: public dolfin::FunctionSpace
+{
+public:
+
+  // Constructor for standard function space
+  CoefficientSpace_p_f(std::shared_ptr<const dolfin::Mesh> mesh):
+    dolfin::FunctionSpace(mesh,
+                          std::make_shared<const dolfin::FiniteElement>(std::make_shared<elasticstructure_finite_element_0>()),
+                          std::make_shared<const dolfin::DofMap>(std::make_shared<elasticstructure_dofmap_0>(), *mesh))
+  {
+    // Do nothing
+  }
+
+  // Constructor for constrained function space
+  CoefficientSpace_p_f(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
+    dolfin::FunctionSpace(mesh,
+                          std::make_shared<const dolfin::FiniteElement>(std::make_shared<elasticstructure_finite_element_0>()),
+                          std::make_shared<const dolfin::DofMap>(std::make_shared<elasticstructure_dofmap_0>(), *mesh, constrained_domain))
+  {
+    // Do nothing
+  }
+
+};
+
+class CoefficientSpace_u_f: public dolfin::FunctionSpace
+{
+public:
+
+  // Constructor for standard function space
+  CoefficientSpace_u_f(std::shared_ptr<const dolfin::Mesh> mesh):
+    dolfin::FunctionSpace(mesh,
+                          std::make_shared<const dolfin::FiniteElement>(std::make_shared<elasticstructure_finite_element_1>()),
+                          std::make_shared<const dolfin::DofMap>(std::make_shared<elasticstructure_dofmap_1>(), *mesh))
+  {
+    // Do nothing
+  }
+
+  // Constructor for constrained function space
+  CoefficientSpace_u_f(std::shared_ptr<const dolfin::Mesh> mesh, std::shared_ptr<const dolfin::SubDomain> constrained_domain):
     dolfin::FunctionSpace(mesh,
                           std::make_shared<const dolfin::FiniteElement>(std::make_shared<elasticstructure_finite_element_1>()),
                           std::make_shared<const dolfin::DofMap>(std::make_shared<elasticstructure_dofmap_1>(), *mesh, constrained_domain))
@@ -3600,7 +3892,11 @@ public:
 
 };
 
-typedef CoefficientSpace_u Form_L_FunctionSpace_1;
+typedef CoefficientSpace_f Form_L_FunctionSpace_1;
+
+typedef CoefficientSpace_p_f Form_L_FunctionSpace_2;
+
+typedef CoefficientSpace_u_f Form_L_FunctionSpace_3;
 
 class Form_L: public dolfin::Form
 {
@@ -3608,7 +3904,7 @@ public:
 
   // Constructor
   Form_L(std::shared_ptr<const dolfin::FunctionSpace> V0):
-    dolfin::Form(1, 1), u(*this, 0)
+    dolfin::Form(1, 3), f(*this, 0), p_f(*this, 1), u_f(*this, 2)
   {
     _function_spaces[0] = V0;
 
@@ -3616,12 +3912,14 @@ public:
   }
 
   // Constructor
-  Form_L(std::shared_ptr<const dolfin::FunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> u):
-    dolfin::Form(1, 1), u(*this, 0)
+  Form_L(std::shared_ptr<const dolfin::FunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> f, std::shared_ptr<const dolfin::GenericFunction> p_f, std::shared_ptr<const dolfin::GenericFunction> u_f):
+    dolfin::Form(1, 3), f(*this, 0), p_f(*this, 1), u_f(*this, 2)
   {
     _function_spaces[0] = V0;
 
-    this->u = u;
+    this->f = f;
+    this->p_f = p_f;
+    this->u_f = u_f;
 
     _ufc_form = std::make_shared<const elasticstructure_form_1>();
   }
@@ -3633,8 +3931,12 @@ public:
   /// Return the number of the coefficient with this name
   virtual std::size_t coefficient_number(const std::string& name) const
   {
-    if (name == "u")
+    if (name == "f")
       return 0;
+    else if (name == "p_f")
+      return 1;
+    else if (name == "u_f")
+      return 2;
 
     dolfin::dolfin_error("generated code for class Form",
                          "access coefficient data",
@@ -3648,7 +3950,11 @@ public:
     switch (i)
     {
     case 0:
-      return "u";
+      return "f";
+    case 1:
+      return "p_f";
+    case 2:
+      return "u_f";
     }
 
     dolfin::dolfin_error("generated code for class Form",
@@ -3660,10 +3966,14 @@ public:
   // Typedefs
   typedef Form_L_FunctionSpace_0 TestSpace;
   typedef Form_L_MultiMeshFunctionSpace_0 MultiMeshTestSpace;
-  typedef Form_L_FunctionSpace_1 CoefficientSpace_u;
+  typedef Form_L_FunctionSpace_1 CoefficientSpace_f;
+  typedef Form_L_FunctionSpace_2 CoefficientSpace_p_f;
+  typedef Form_L_FunctionSpace_3 CoefficientSpace_u_f;
 
   // Coefficients
-  dolfin::CoefficientAssigner u;
+  dolfin::CoefficientAssigner f;
+  dolfin::CoefficientAssigner p_f;
+  dolfin::CoefficientAssigner u_f;
 };
 
 class MultiMeshForm_L: public dolfin::MultiMeshForm
@@ -3672,7 +3982,7 @@ public:
 
   // Constructor
   MultiMeshForm_L(std::shared_ptr<const dolfin::MultiMeshFunctionSpace> V0):
-    dolfin::MultiMeshForm(V0), u(*this, 0)
+    dolfin::MultiMeshForm(V0), f(*this, 0), p_f(*this, 1), u_f(*this, 2)
   {
     // Create and add standard forms
     std::size_t num_parts = V0->num_parts(); // assume all equal and pick first
@@ -3690,8 +4000,8 @@ public:
   }
 
   // Constructor
-  MultiMeshForm_L(std::shared_ptr<const dolfin::MultiMeshFunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> u):
-    dolfin::MultiMeshForm(V0), u(*this, 0)
+  MultiMeshForm_L(std::shared_ptr<const dolfin::MultiMeshFunctionSpace> V0, std::shared_ptr<const dolfin::GenericFunction> f, std::shared_ptr<const dolfin::GenericFunction> p_f, std::shared_ptr<const dolfin::GenericFunction> u_f):
+    dolfin::MultiMeshForm(V0), f(*this, 0), p_f(*this, 1), u_f(*this, 2)
   {
     // Create and add standard forms
     std::size_t num_parts = V0->num_parts(); // assume all equal and pick first
@@ -3705,7 +4015,9 @@ public:
     build();
 
     /// Assign coefficients
-    this->u = u;
+    this->f = f;
+    this->p_f = p_f;
+    this->u_f = u_f;
 
   }
 
@@ -3716,8 +4028,12 @@ public:
   /// Return the number of the coefficient with this name
   virtual std::size_t coefficient_number(const std::string& name) const
   {
-    if (name == "u")
+    if (name == "f")
       return 0;
+    else if (name == "p_f")
+      return 1;
+    else if (name == "u_f")
+      return 2;
 
     dolfin::dolfin_error("generated code for class Form",
                          "access coefficient data",
@@ -3731,7 +4047,11 @@ public:
     switch (i)
     {
     case 0:
-      return "u";
+      return "f";
+    case 1:
+      return "p_f";
+    case 2:
+      return "u_f";
     }
 
     dolfin::dolfin_error("generated code for class Form",
@@ -3743,10 +4063,14 @@ public:
   // Typedefs
   typedef Form_L_FunctionSpace_0 TestSpace;
   typedef Form_L_MultiMeshFunctionSpace_0 MultiMeshTestSpace;
-  typedef Form_L_FunctionSpace_1 CoefficientSpace_u;
+  typedef Form_L_FunctionSpace_1 CoefficientSpace_f;
+  typedef Form_L_FunctionSpace_2 CoefficientSpace_p_f;
+  typedef Form_L_FunctionSpace_3 CoefficientSpace_u_f;
 
   // Coefficients
-  dolfin::MultiMeshCoefficientAssigner u;
+  dolfin::MultiMeshCoefficientAssigner f;
+  dolfin::MultiMeshCoefficientAssigner p_f;
+  dolfin::MultiMeshCoefficientAssigner u_f;
 };
 
 // Class typedefs

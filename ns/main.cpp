@@ -1,5 +1,7 @@
 
 // Begin demo
+#include <dolfin/geometry/SimplexQuadrature.h>
+
 #include "Circle.h"
 #include "BoxAdjacents.h"
 #include "IBInterpolation.h"
@@ -8,7 +10,7 @@
 #include "TentativeVelocity.h"
 #include "PressureUpdate.h"
 #include "VelocityUpdate.h"
-
+#include "ElasticStructure.h"
 
 using namespace dolfin;
 
@@ -17,7 +19,7 @@ class NoslipDomain : public SubDomain
 {
   bool inside(const Array<double> &x, bool on_boundary) const
   {
-    return near(x[1], 0) || near(x[1], 0.41);
+    return near(x[0], 0) || near(x[0], 1.0) || near(x[1], 0);
   }
 };
 
@@ -26,16 +28,7 @@ class InflowDomain : public SubDomain
 {
   bool inside(const Array<double> &x, bool on_boundary) const
   {
-    return near(x[0], 0);
-  }
-};
-
-// Define inflow domain
-class OutflowDomain : public SubDomain
-{
-  bool inside(const Array<double> &x, bool on_boundary) const
-  {
-    return near(x[0], 2.2);
+    return near(x[1], 1);
   }
 };
 
@@ -49,7 +42,7 @@ public:
   // Evaluate pressure at inflow
   void eval(Array<double> &values, const Array<double> &x) const
   {
-    values[0] = 4.0 * 1.5 * x[1] * (0.41 - x[1]) / pow(0.41, 2);
+    values[0] = 1.0;
     values[1] = 0.0;
   }
 };
@@ -58,13 +51,13 @@ int main()
 {
   // Create chanel mesh
   Point point0(0, 0, 0);
-  Point point1(2.2, 0.41, 0);
-  BoxAdjacents ba({point0, point1}, {220, 41}, CellType::Type::quadrilateral);
+  Point point1(1.0, 1.0, 0);
+  BoxAdjacents ba({point0, point1}, {64, 64}, CellType::Type::quadrilateral);
   DeltaInterplation interpolation(ba);
 
   // Create circle mesh
   auto circle = std::make_shared<Mesh>("../circle.xml.gz");
-  auto U = std::make_shared<Circle::FunctionSpace>(circle);
+  auto U = std::make_shared<ElasticStructure::FunctionSpace>(circle);
   auto body_velocity = std::make_shared<Function>(U);
   auto body_force = std::make_shared<Function>(U);
 
@@ -74,7 +67,7 @@ int main()
 
   // Set parameter values
   double dt = 0.0005;
-  double T = 5;
+  double T = 50;
 
   // Define values for boundary conditions
   auto v_in = std::make_shared<InflowVelocity>();
@@ -84,14 +77,12 @@ int main()
   // Define subdomains for boundary conditions
   auto noslip_domain = std::make_shared<NoslipDomain>();
   auto inflow_domain = std::make_shared<InflowDomain>();
-  auto outflow_domain = std::make_shared<OutflowDomain>();
 
   // Define boundary conditions
   DirichletBC noslip(V, zero_vector, noslip_domain);
   DirichletBC inflow(V, v_in, inflow_domain);
-  DirichletBC outflow(Q, zero, outflow_domain);
-  std::vector<DirichletBC *> bcu = {{&noslip, &inflow}};
-  std::vector<DirichletBC *> bcp = {&outflow};
+  std::vector<DirichletBC *> bcu = {{&inflow, &noslip}};
+  std::vector<DirichletBC *> bcp = {};
 
   // Create functions
   auto u0 = std::make_shared<Function>(V);
@@ -110,7 +101,8 @@ int main()
   PressureUpdate::LinearForm L2(Q);
   VelocityUpdate::BilinearForm a3(V, V);
   VelocityUpdate::LinearForm L3(V);
-
+  ElasticStructure::BilinearForm a4(U, U);
+  ElasticStructure::LinearForm L4(U);
   // Set coefficients
   a1.k = k;
   L1.k = k;
@@ -121,15 +113,17 @@ int main()
   L3.k = k;
   L3.u1 = u1;
   L3.p1 = p1;
+  L4.u = body_velocity;
 
   // Assemble matrices
-  Matrix A1, A2, A3;
+  Matrix A1, A2, A3, A4;
   assemble(A1, a1);
   assemble(A2, a2);
   assemble(A3, a3);
+  assemble(A4, a4);
 
   // Create vectors
-  Vector b1, b2, b3;
+  Vector b1, b2, b3, b4;
 
   // Use amg preconditioner if available
   const std::string prec(has_krylov_solver_preconditioner("amg") ? "amg" : "default");
@@ -144,16 +138,16 @@ int main()
   while (t < T + DOLFIN_EPS)
   {
     // Interpolate velocity to solid.
-    interpolation.fluid_to_solid(*u1, *body_velocity);
+    //interpolation.fluid_to_solid(*u1, *body_velocity);
 
     // calculate body force.
-    *body_force = FunctionAXPY(body_velocity,-1);
+    //*body_force = FunctionAXPY(body_velocity,-1);
 
     // interpolate force into fluid.
-    interpolation.solid_to_fluid(*f, *body_force);
+    //interpolation.solid_to_fluid(*f, *body_force);
 
     // assign force term
-    L1.f = f;
+    //L1.f = f;
 
     // Compute tentative velocity step
     begin("Computing tentative velocity");
@@ -182,10 +176,21 @@ int main()
     solve(A3, *u1->vector(), b3, "gmres", "default");
     end();
 
+    // Velocity correction
+    begin("Computing elastic force");
+    interpolation.fluid_to_solid(*u1, *body_velocity);
+    auto body_disp = std::make_shared<Function>(U);
+    *body_disp = FunctionAXPY(body_velocity,0.0005);
+    ALE::move(*circle, *body_disp);
+    assemble(b4, L4);
+    solve(A4, *body_force->vector(), b4, "gmres", "default");
+    interpolation.solid_to_fluid(*f, *body_force);
+    end();
+
     // Save to file
     ufile << *u1;
     pfile << *p1;
-    ffile << *f;
+    ffile << *body_force;
 
     // Move to next time step
     *u0 = *u1;

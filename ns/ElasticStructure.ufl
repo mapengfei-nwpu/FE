@@ -1,22 +1,24 @@
+# define the variational
 # Compile this form with FFC: ffc -l dolfin ElasticStructure.ufl.
 
-# Define function spaces (P2-P1)
-V = VectorElement("Lagrange", triangle, 1)
+# Define function spaces (P2)
+V = VectorElement("P", triangle, 1)
 
 # Define trial and test functions
 p = TrialFunction(V)
 q = TestFunction(V)
 
 # Define coefficients
-u  = Coefficient(V)
+u = Coefficient(V)
 
 # deformation gradient tensor
-F = Identity(2)+0.0005*grad(u)
+# F = I at the first step, so...
+F = Identity(2) + 0.0005*grad(u)
 
 # PK tensor
 u_e = 0.1
 p_0 = 0.1
-P_E = u_e*F - p_0*inv(F)
+P_E = u_e*F - p_0*inv(F).T
 
 a = inner(p,q)*dx
 L = -inner(P_E,grad(q))*dx
