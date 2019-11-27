@@ -13,11 +13,11 @@ u = Coefficient(V)
 
 # deformation gradient tensor
 # F = I at the first step, so...
-F = Identity(2) + 0.005*grad(u)
+F = Identity(2) + 0.001*grad(u)
 
 # PK tensor
-u_e = 0.1
-p_0 = 0.1
+u_e = 0.2
+p_0 = 0.2
 P_E = u_e*F - p_0*inv(F).T
 
 a = inner(p,q)*dx

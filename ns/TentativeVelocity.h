@@ -3346,9 +3346,9 @@ return enabled;
         sv16[14] = sv16[6] + sv16[11];
         sv16[15] = sv16[12] + sv16[7];
         sv16[16] = std::abs(sv16[2]);
-        sv16[17] = 0.001 * sv16[13] * sv16[16];
-        sv16[18] = 0.001 * sv16[14] * sv16[16];
-        sv16[19] = 0.001 * sv16[15] * sv16[16];
+        sv16[17] = 0.01 * sv16[13] * sv16[16];
+        sv16[18] = 0.01 * sv16[14] * sv16[16];
+        sv16[19] = 0.01 * sv16[15] * sv16[16];
         sv16[20] = 1 / w[0][0] * sv16[16];
         const double fw0 = sv16[20] * weights16[iq];
         alignas(32) double TF0[9];
@@ -3678,7 +3678,7 @@ public:
 
   const char * signature() const final override
   {
-    return "0bf2ff6afb513f5c7f0b6cc3904b503059cf814d0dc0b0d81f5c858848c411226251cc0ff527b8a73347b42b1e38bb66aa1078ad93fdbc89c222a962aae11c11";
+    return "7fe15a4ac6c6507dab2802f9e2fa7613906e9caef805ca789803d086c4c5858d32663d3fa06cde5b38eed9f154f172a6418221673a3e7fc3e7c34ff8d774d7f7";
   }
 
   std::size_t rank() const final override

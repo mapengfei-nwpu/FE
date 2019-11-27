@@ -66,7 +66,7 @@ int main()
   auto Q = std::make_shared<PressureUpdate::FunctionSpace>(ba.mesh());
 
   // Set parameter values
-  double dt = 0.0005;
+  double dt = 0.001;
   double T = 50;
 
   // Define values for boundary conditions
@@ -180,12 +180,13 @@ int main()
     begin("Computing elastic force");
     interpolation.fluid_to_solid(*u1, *body_velocity);
     auto body_disp = std::make_shared<Function>(U);
-    *body_disp = FunctionAXPY(body_velocity,0.0005);
+    *body_disp = FunctionAXPY(body_velocity, 0.001);
     ALE::move(*circle, *body_disp);
     L4.u = body_velocity;
     assemble(b4, L4);
     solve(A4, *body_force->vector(), b4, "gmres", "default");
     interpolation.solid_to_fluid(*f, *body_force);
+    L1.f = f;
     end();
 
     // Save to file

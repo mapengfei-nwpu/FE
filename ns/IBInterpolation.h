@@ -3,7 +3,7 @@
 #include "BoxAdjacents.h"
 using namespace dolfin;
 
-template<typename T>
+template <typename T>
 std::vector<T> my_mpi_gather(std::vector<T> local)
 {
 
@@ -186,12 +186,17 @@ public:
 				auto cell_dofmap = dofmap->cell_dofs(cell.index());
 				for (size_t k = 0; k < cell_dofmap.size() / v.value_size(); k++)
 				{
-					Point on_cell(coordinates[k][0], coordinates[k][1]);
-					double d = delta(solid_coordinates, on_cell, side_lengths[0] / 2.0);
+					Point cell_point(coordinates[k][0], coordinates[k][1]);
+					double d = delta(solid_coordinates, cell_point, side_lengths[0]);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
 						/// every rectangle is divided into 9 parts.
-						solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 9;
+						if (k == 0 || k == 1 || k == 3 || k == 4)
+							solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 16.0;
+						if (k == 2 || k == 5 || k == 6 || k == 7)
+							solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 8.0;
+						if (k == 8)
+							solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 4.0;
 					}
 
 				} // end loop inside the cell
@@ -292,7 +297,7 @@ public:
 				for (size_t k = 0; k < cell_dofmap.size() / value_size; k++)
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
-					double param = delta(solid_point, cell_point, hmax / 2);
+					double param = delta(solid_point, cell_point, hmax);
 					if (cell_dofmap[k] < fluid.vector()->local_size() && param > 0)
 					{
 						indices_to_delta[cell_dofmap[k]] = param;
