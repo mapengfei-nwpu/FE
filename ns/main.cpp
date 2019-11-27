@@ -60,13 +60,14 @@ int main()
   auto U = std::make_shared<ElasticStructure::FunctionSpace>(circle);
   auto body_velocity = std::make_shared<Function>(U);
   auto body_force = std::make_shared<Function>(U);
+  auto body_disp = std::make_shared<Function>(U);
 
   // Create function spaces
   auto V = std::make_shared<VelocityUpdate::FunctionSpace>(ba.mesh());
   auto Q = std::make_shared<PressureUpdate::FunctionSpace>(ba.mesh());
 
   // Set parameter values
-  double dt = 0.001;
+  double dt = 0.0001;
   double T = 50;
 
   // Define values for boundary conditions
@@ -179,10 +180,12 @@ int main()
     // Velocity correction
     begin("Computing elastic force");
     interpolation.fluid_to_solid(*u1, *body_velocity);
-    auto body_disp = std::make_shared<Function>(U);
-    *body_disp = FunctionAXPY(body_velocity, 0.001);
-    ALE::move(*circle, *body_disp);
-    L4.u = body_velocity;
+    auto temp_disp = std::make_shared<Function>(U);
+    *temp_disp = FunctionAXPY(body_velocity, 0.0001);
+    ALE::move(*circle, *temp_disp);
+    *temp_disp = FunctionAXPY(body_velocity, 0.0001)+body_disp;
+    *body_disp = *temp_disp;
+    L4.u = body_disp;
     assemble(b4, L4);
     solve(A4, *body_force->vector(), b4, "gmres", "default");
     interpolation.solid_to_fluid(*f, *body_force);
