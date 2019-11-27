@@ -52,7 +52,7 @@ int main()
   // Create chanel mesh
   Point point0(0, 0, 0);
   Point point1(1.0, 1.0, 0);
-  BoxAdjacents ba({point0, point1}, {64, 64}, CellType::Type::quadrilateral);
+  BoxAdjacents ba({point0, point1}, {32, 32}, CellType::Type::quadrilateral);
   DeltaInterplation interpolation(ba);
 
   // Create circle mesh
@@ -182,6 +182,7 @@ int main()
     auto body_disp = std::make_shared<Function>(U);
     *body_disp = FunctionAXPY(body_velocity,0.0005);
     ALE::move(*circle, *body_disp);
+    L4.u = body_velocity;
     assemble(b4, L4);
     solve(A4, *body_force->vector(), b4, "gmres", "default");
     interpolation.solid_to_fluid(*f, *body_force);
