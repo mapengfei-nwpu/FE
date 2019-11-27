@@ -2764,57 +2764,57 @@ return enabled;
     // PM* dimensions: [entities][dofs][dofs]
     alignas(32) static const double FE11_C0_D01_Q1[1][1][2] = { { { -1.0, 1.0 } } };
     // Unstructured piecewise computations
-    const double w0_d1_c0 = w[0][0] * FE11_C0_D01_Q1[0][0][0] + w[0][2] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c0 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[2] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c3 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[5] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c1 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[4] * FE11_C0_D01_Q1[0][0][1];
-    const double J_c2 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[3] * FE11_C0_D01_Q1[0][0][1];
-    double w0_d0_c0 = 0.0;
-    for (int ic = 0; ic < 2; ++ic)
-        w0_d0_c0 += w[0][ic] * FE11_C0_D01_Q1[0][0][ic];
     double w0_d0_c1 = 0.0;
     for (int ic = 0; ic < 2; ++ic)
         w0_d0_c1 += w[0][ic + 3] * FE11_C0_D01_Q1[0][0][ic];
+    const double J_c3 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[5] * FE11_C0_D01_Q1[0][0][1];
+    const double J_c0 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[2] * FE11_C0_D01_Q1[0][0][1];
+    const double J_c1 = coordinate_dofs[0] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[4] * FE11_C0_D01_Q1[0][0][1];
+    const double J_c2 = coordinate_dofs[1] * FE11_C0_D01_Q1[0][0][0] + coordinate_dofs[3] * FE11_C0_D01_Q1[0][0][1];
     const double w0_d1_c1 = w[0][3] * FE11_C0_D01_Q1[0][0][0] + w[0][5] * FE11_C0_D01_Q1[0][0][1];
+    const double w0_d1_c0 = w[0][0] * FE11_C0_D01_Q1[0][0][0] + w[0][2] * FE11_C0_D01_Q1[0][0][1];
+    double w0_d0_c0 = 0.0;
+    for (int ic = 0; ic < 2; ++ic)
+        w0_d0_c0 += w[0][ic] * FE11_C0_D01_Q1[0][0][ic];
     alignas(32) double sp[47];
     sp[0] = J_c0 * J_c3;
     sp[1] = J_c1 * J_c2;
     sp[2] = sp[0] + -1 * sp[1];
-    sp[3] = J_c0 / sp[2];
-    sp[4] = w0_d1_c0 * sp[3];
-    sp[5] = -1 * J_c1 / sp[2];
-    sp[6] = w0_d0_c0 * sp[5];
+    sp[3] = J_c3 / sp[2];
+    sp[4] = w0_d0_c1 * sp[3];
+    sp[5] = -1 * J_c2 / sp[2];
+    sp[6] = w0_d1_c1 * sp[5];
     sp[7] = sp[4] + sp[6];
-    sp[8] = J_c3 / sp[2];
-    sp[9] = w0_d0_c1 * sp[8];
-    sp[10] = -1 * J_c2 / sp[2];
-    sp[11] = w0_d1_c1 * sp[10];
+    sp[8] = J_c0 / sp[2];
+    sp[9] = w0_d1_c0 * sp[8];
+    sp[10] = -1 * J_c1 / sp[2];
+    sp[11] = w0_d0_c0 * sp[10];
     sp[12] = sp[9] + sp[11];
-    sp[13] = w0_d1_c1 * sp[3];
-    sp[14] = w0_d0_c1 * sp[5];
+    sp[13] = w0_d1_c1 * sp[8];
+    sp[14] = w0_d0_c1 * sp[10];
     sp[15] = sp[13] + sp[14];
-    sp[16] = w0_d0_c0 * sp[8];
-    sp[17] = w0_d1_c0 * sp[10];
+    sp[16] = w0_d0_c0 * sp[3];
+    sp[17] = w0_d1_c0 * sp[5];
     sp[18] = sp[16] + sp[17];
     sp[19] = (1 + sp[15]) * (1 + sp[18]);
-    sp[20] = sp[7] * sp[12];
+    sp[20] = sp[12] * sp[7];
     sp[21] = sp[19] + -1 * sp[20];
     sp[22] = -1 * sp[12] / sp[21];
-    sp[23] = 10.0 * sp[7] + -1 * (10.0 * sp[22]);
-    sp[24] = sp[23] * sp[3];
-    sp[25] = sp[23] * sp[5];
+    sp[23] = 0.2 * sp[7] + -1 * (0.2 * sp[22]);
+    sp[24] = sp[23] * sp[8];
+    sp[25] = sp[23] * sp[10];
     sp[26] = (1 + sp[18]) / sp[21];
-    sp[27] = 10.0 * (1 + sp[15]) + -1 * (10.0 * sp[26]);
-    sp[28] = sp[27] * sp[3];
-    sp[29] = sp[27] * sp[5];
+    sp[27] = 0.2 * (1 + sp[15]) + -1 * (0.2 * sp[26]);
+    sp[28] = sp[27] * sp[8];
+    sp[29] = sp[27] * sp[10];
     sp[30] = (1 + sp[15]) / sp[21];
-    sp[31] = 10.0 * (1 + sp[18]) + -1 * (10.0 * sp[30]);
-    sp[32] = sp[31] * sp[10];
-    sp[33] = sp[31] * sp[8];
+    sp[31] = 0.2 * (1 + sp[18]) + -1 * (0.2 * sp[30]);
+    sp[32] = sp[31] * sp[5];
+    sp[33] = sp[31] * sp[3];
     sp[34] = -1 * sp[7] / sp[21];
-    sp[35] = 10.0 * sp[12] + -1 * (10.0 * sp[34]);
-    sp[36] = sp[35] * sp[10];
-    sp[37] = sp[35] * sp[8];
+    sp[35] = 0.2 * sp[12] + -1 * (0.2 * sp[34]);
+    sp[36] = sp[35] * sp[5];
+    sp[37] = sp[35] * sp[3];
     sp[38] = sp[24] + sp[32];
     sp[39] = sp[33] + sp[25];
     sp[40] = sp[28] + sp[36];
@@ -3090,7 +3090,7 @@ public:
 
   const char * signature() const final override
   {
-    return "9f12c31f358c33d36f0b4d93982c6fb4ec470dffdf5c95ed2352d0cfe430a3491842289a4b8d825270a02d504fb5cc45f8879a14ddabc83c8bb1b8466410e372";
+    return "38b057685ee9bd8c7bd61e62527dd81df2dad51a516a9441b2f7bb88deb08acdfb451a7f9dd562bc868e13ecaeec6cc11e58e9a9d5964fc6ae63f1137e3d3557";
   }
 
   std::size_t rank() const final override

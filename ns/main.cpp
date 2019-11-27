@@ -52,7 +52,7 @@ int main()
   // Create chanel mesh
   Point point0(0, 0, 0);
   Point point1(1.0, 1.0, 0);
-  BoxAdjacents ba({point0, point1}, {32, 32}, CellType::Type::quadrilateral);
+  BoxAdjacents ba({point0, point1}, {64, 64}, CellType::Type::quadrilateral);
   DeltaInterplation interpolation(ba);
 
   // Create circle mesh
@@ -68,7 +68,7 @@ int main()
 
   // Set parameter values
   double dt = 0.0001;
-  double T = 50;
+  double T = 10;
 
   // Define values for boundary conditions
   auto v_in = std::make_shared<InflowVelocity>();
@@ -126,13 +126,11 @@ int main()
   // Create vectors
   Vector b1, b2, b3, b4;
 
-  // Use amg preconditioner if available
-  const std::string prec(has_krylov_solver_preconditioner("amg") ? "amg" : "default");
-
   // Create files for storing solution
   File ufile("results/velocity.pvd");
   File pfile("results/pressure.pvd");
   File ffile("results/force.pvd");
+  File bfile("results/body.pvd");
 
   // Time-stepping
   double t = dt;
@@ -155,7 +153,7 @@ int main()
     assemble(b1, L1);
     for (std::size_t i = 0; i < bcu.size(); i++)
       bcu[i]->apply(A1, b1);
-    solve(A1, *u1->vector(), b1, "gmres", "default");
+    solve(A1, *u1->vector(), b1, "bicgstab", "hypre_amg");
     end();
 
     // Pressure correction
@@ -166,7 +164,7 @@ int main()
       bcp[i]->apply(A2, b2);
       bcp[i]->apply(*p1->vector());
     }
-    solve(A2, *p1->vector(), b2, "bicgstab", prec);
+    solve(A2, *p1->vector(), b2, "bicgstab", "hypre_amg");
     end();
 
     // Velocity correction
@@ -174,20 +172,20 @@ int main()
     assemble(b3, L3);
     for (std::size_t i = 0; i < bcu.size(); i++)
       bcu[i]->apply(A3, b3);
-    solve(A3, *u1->vector(), b3, "gmres", "default");
+    solve(A3, *u1->vector(), b3, "cg", "sor");
     end();
 
     // Velocity correction
     begin("Computing elastic force");
     interpolation.fluid_to_solid(*u1, *body_velocity);
     auto temp_disp = std::make_shared<Function>(U);
-    *temp_disp = FunctionAXPY(body_velocity, 0.0001);
+    *temp_disp = FunctionAXPY(body_velocity, dt);
     ALE::move(*circle, *temp_disp);
-    *temp_disp = FunctionAXPY(body_velocity, 0.0001)+body_disp;
+    *temp_disp = FunctionAXPY(body_velocity, dt)+body_disp;
     *body_disp = *temp_disp;
     L4.u = body_disp;
     assemble(b4, L4);
-    solve(A4, *body_force->vector(), b4, "gmres", "default");
+    solve(A4, *body_force->vector(), b4, "cg", "sor");
     interpolation.solid_to_fluid(*f, *body_force);
     L1.f = f;
     end();
@@ -195,7 +193,8 @@ int main()
     // Save to file
     ufile << *u1;
     pfile << *p1;
-    ffile << *body_force;
+    ffile << *f;
+    bfile << *body_force;
 
     // Move to next time step
     *u0 = *u1;

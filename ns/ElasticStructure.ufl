@@ -16,9 +16,9 @@ u = Coefficient(V)
 F = Identity(2) + grad(u)
 
 # PK tensor
-u_e = 10.0
-p_0 = 10.0
-P_E = u_e*F - p_0*inv(F).T
+u_e = 0.2
+p_0 = 0.2
+P_E = u_e*F.T - p_0*inv(F)
 
 a = inner(p,q)*dx
 L = -inner(P_E,grad(q))*dx
