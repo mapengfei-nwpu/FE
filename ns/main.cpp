@@ -52,7 +52,7 @@ int main()
   // Create chanel mesh
   Point point0(0, 0, 0);
   Point point1(1.0, 1.0, 0);
-  BoxAdjacents ba({point0, point1}, {64, 64}, CellType::Type::quadrilateral);
+  BoxAdjacents ba({point0, point1}, {32, 32}, CellType::Type::quadrilateral);
   DeltaInterplation interpolation(ba);
 
   // Create circle mesh
@@ -67,7 +67,7 @@ int main()
   auto Q = std::make_shared<PressureUpdate::FunctionSpace>(ba.mesh());
 
   // Set parameter values
-  double dt = 0.0001;
+  double dt = 0.004;
   double T = 10;
 
   // Define values for boundary conditions
@@ -176,6 +176,7 @@ int main()
     end();
 
     // Velocity correction
+    /*
     begin("Computing elastic force");
     interpolation.fluid_to_solid(*u1, *body_velocity);
     auto temp_disp = std::make_shared<Function>(U);
@@ -187,9 +188,9 @@ int main()
     assemble(b4, L4);
     solve(A4, *body_force->vector(), b4, "cg", "sor");
     interpolation.solid_to_fluid(*f, *body_force);
-    L1.f = f;
+    //L1.f = f;
     end();
-
+*/
     // Save to file
     ufile << *u1;
     pfile << *p1;
