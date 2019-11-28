@@ -82,7 +82,7 @@ int main()
   // Define boundary conditions
   DirichletBC noslip(V, zero_vector, noslip_domain);
   DirichletBC inflow(V, v_in, inflow_domain);
-  std::vector<DirichletBC *> bcu = {{&inflow, &noslip}};
+  std::vector<DirichletBC *> bcu = {{ &noslip,&inflow}};
   std::vector<DirichletBC *> bcp = {};
 
   // Create functions
