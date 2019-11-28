@@ -1,6 +1,30 @@
 #include <dolfin.h>
 #include <numeric>
+#include "BoxAdjacents.h"
 using namespace dolfin;
+
+template <typename T>
+std::vector<T> my_mpi_gather(std::vector<T> local)
+{
+
+	auto mpi_size = dolfin::MPI::size(MPI_COMM_WORLD);
+
+	/// collect local coordinate_dofs on every process
+	std::vector<std::vector<T>> mpi_collect(mpi_size);
+	dolfin::MPI::all_gather(MPI_COMM_WORLD, local, mpi_collect);
+	std::vector<T> global;
+
+	/// unwrap mpi_dof_coordinates.
+	for (size_t i = 0; i < mpi_collect.size(); i++)
+	{
+		for (size_t j = 0; j < mpi_collect[i].size(); j++)
+		{
+			global.push_back(mpi_collect[i][j]);
+		}
+	}
+	return global;
+}
+
 std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
 {
 	/// some shorcut
@@ -12,18 +36,9 @@ std::vector<std::array<double, 2>> get_global_dof_coordinates(const Function &f)
 	auto local_dof_coordinates = f.function_space()->tabulate_dof_coordinates();
 
 	/// collect local coordinate_dofs on every process
-	std::vector<std::vector<double>> mpi_dof_coordinates(mpi_size);
-	dolfin::MPI::all_gather(mpi_comm, local_dof_coordinates, mpi_dof_coordinates);
-	std::vector<double> dof_coordinates_long;
+	auto dof_coordinates_long = my_mpi_gather(local_dof_coordinates);
 
-	/// unwrap mpi_dof_coordinates.
-	for (size_t i = 0; i < mpi_dof_coordinates.size(); i++)
-	{
-		for (size_t j = 0; j < mpi_dof_coordinates[i].size(); j++)
-		{
-			dof_coordinates_long.push_back(mpi_dof_coordinates[i][j]);
-		}
-	}
+	/// unwrap it.
 	std::vector<std::array<double, 2>> dof_coordinates(dof_coordinates_long.size() / 4);
 	for (size_t i = 0; i < dof_coordinates_long.size(); i += 4)
 	{
@@ -48,19 +63,51 @@ std::vector<double> get_global_dofs(const Function &f)
 	f.vector()->get_local(local_values);
 
 	/// collect local values on every process.
-	std::vector<std::vector<double>> mpi_values(dolfin::MPI::size(mpi_comm));
-	dolfin::MPI::all_gather(mpi_comm, local_values, mpi_values);
-	std::vector<double> values;
+	auto values = my_mpi_gather(local_values);
+	return values;
+}
 
-	/// unwrap mpi_values.
-	for (size_t i = 0; i < mpi_values.size(); i++)
+void get_gauss_rule(
+	const Function &f,
+	std::vector<double> &coordinates,
+	std::vector<double> &values,
+	std::vector<double> &weights)
+{
+	// Construct Gauss quadrature rules
+	SimplexQuadrature gq(2, 9);
+	auto mesh = f.function_space()->mesh();
+
+	/// iterate cell of local mesh.
+	for (CellIterator cell(*mesh); !cell.end(); ++cell)
 	{
-		for (size_t j = 0; j < mpi_values[i].size(); j++)
+		// Create ufc_cell associated with dolfin cell.
+		ufc::cell ufc_cell;
+		cell->get_cell_data(ufc_cell);
+
+		// Compute quadrature rule for the cell.
+		auto qr = gq.compute_quadrature_rule(*cell);
+		dolfin_assert(qr.second.size() == qr.first.size() / 2);
+		for (size_t i = 0; i < qr.second.size(); i++)
 		{
-			values.push_back(mpi_values[i][j]);
+			Array<double> v(2);
+			Array<double> x(2);
+
+			/// Call evaluate function
+			x[0] = qr.first[2 * i];
+			x[1] = qr.first[2 * i + 1];
+			f.eval(v, x, *cell, ufc_cell);
+
+			/// push back what we get.
+			coordinates.push_back(x[0]);
+			coordinates.push_back(x[1]);
+			weights.push_back(qr.second[i]);
+			values.push_back(v[0]);
+			values.push_back(v[1]);
 		}
 	}
-	return values;
+	values = my_mpi_gather(values);
+	weights = my_mpi_gather(weights);
+	coordinates = my_mpi_gather(coordinates);
 }
 
 class DeltaInterplation
@@ -84,7 +131,7 @@ public:
 		std::vector<double> values(dof_coordinates.size() * 2);
 		fluid_to_solid_raw(fluid, values, dof_coordinates);
 
-		/// collect all body vectors on every processes and
+		/// collect all solid_values vectors on every processes and
 		/// assign them to a function.
 		auto size = solid.vector()->local_size();
 		auto offset = solid.vector()->local_range().first;
@@ -98,32 +145,29 @@ public:
 		solid.vector()->apply("insert");
 	}
 
-	void fluid_to_solid_raw(Function &v, std::vector<double> &body,
+	void fluid_to_solid_raw(Function &v, std::vector<double> &solid_values,
 							std::vector<std::array<double, 2>> &body_coordinates)
 	{
 		/// the meshes of v and um should be the same.
 		/// TODO : compare two meshes
-		dolfin_assert(v.value_size() == body.size() / body_coordinates.size());
+		dolfin_assert(v.value_size() == solid_values.size() / body_coordinates.size());
 
 		/// smart shortcut
 		auto rank = dolfin::MPI::rank(v.function_space()->mesh()->mpi_comm());
 		auto mesh = v.function_space()->mesh();		// pointer to a mesh
 		auto dofmap = v.function_space()->dofmap(); // pointer to a dofmap
 
-		std::cout << "value size: " << v.value_size() << std::endl;
-		std::cout << "value size: " << body.size() << std::endl;
-
-		/// iterate every body coordinate.
-		for (size_t i = 0; i < body.size() / v.value_size(); i++)
+		/// iterate every solid_values coordinate.
+		for (size_t i = 0; i < solid_values.size() / v.value_size(); i++)
 		{
-			/// initialize body to zero.
+			/// initialize solid_values to zero.
 			for (size_t l = 0; l < v.value_size(); l++)
 			{
-				body[i * v.value_size() + l] = 0.0;
+				solid_values[i * v.value_size() + l] = 0.0;
 			}
 
-			Point body_coordinate(body_coordinates[i][0], body_coordinates[i][1]);
-			auto adjacents = um.get_adjacents(body_coordinate);
+			Point solid_coordinates(body_coordinates[i][0], body_coordinates[i][1]);
+			auto adjacents = um.get_adjacents(solid_coordinates);
 			for (size_t j = 0; j < adjacents.size(); j++)
 			{
 
@@ -139,38 +183,33 @@ public:
 				auto cell_dofmap = dofmap->cell_dofs(cell.index());
 				for (size_t k = 0; k < cell_dofmap.size() / v.value_size(); k++)
 				{
-					Point on_cell(coordinates[k][0], coordinates[k][1]);
-					double d = delta(body_coordinate, on_cell);
+					Point cell_point(coordinates[k][0], coordinates[k][1]);
+					double d = delta(solid_coordinates, cell_point, side_lengths[0]);
 					for (size_t l = 0; l < v.value_size(); l++)
 					{
-						body[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1];
+						/// every rectangle is divided into 9 parts.
+						if (k == 0 || k == 1 || k == 3 || k == 4)
+							solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 16.0;
+						if (k == 2 || k == 5 || k == 6 || k == 7)
+							solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 8.0;
+						if (k == 8)
+							solid_values[i * v.value_size() + l] += d * (*(v.vector()))[cell_dofmap[k] + l] * side_lengths[0] * side_lengths[1] / 4.0;
 					}
-
-					///////////////////////////// WATCH OUT! /////////////////////////////////
-					///                                                                    ///
-					///  vector in a Function is initialized with a dofmap. this dofmap    ///
-					///  contains many informations especially the layout of the vector.   ///
-					///  Besides, dofmap tells which is the ghost entries of a element.    ///
-					///  see Function::init_vector()                                       ///
-					///  and https://fenicsproject.discourse.group/t/it-seems-that         ///
-					///  -local-size-didnt-return-real-local-size-of-a-vector/1929         ///
-					///                                                                    ///
-					//////////////////////////////////////////////////////////////////////////
 
 				} // end loop inside the cell
 			}
 			// end adjacents loop
 		}
-		////////////////////////// gather body on one processor //////////////////////////
+		////////////////////////// gather solid_values on one processor //////////////////////////
 		//////////////////  TODO : this part can use MPI_reduce directly  ////////////////
 		std::vector<std::vector<double>> mpi_collect(dolfin::MPI::size(mesh->mpi_comm()));
-		dolfin::MPI::all_gather(mesh->mpi_comm(), body, mpi_collect);
-		for (size_t i = 0; i < body.size(); i++)
+		dolfin::MPI::all_gather(mesh->mpi_comm(), solid_values, mpi_collect);
+		for (size_t i = 0; i < solid_values.size(); i++)
 		{
-			body[i] = 0;
+			solid_values[i] = 0;
 			for (size_t j = 0; j < mpi_collect.size(); j++)
 			{
-				body[i] += mpi_collect[j][i];
+				solid_values[i] += mpi_collect[j][i];
 			}
 		}
 		//////////////////////////////////////////////////////////////////////////////////
@@ -180,12 +219,16 @@ public:
 	void solid_to_fluid(Function &fluid, Function &solid)
 	{
 		/// calculate global dof coordinates and dofs of solid.
-		auto solid_dof_coordinates = get_global_dof_coordinates(solid);
-		auto solid_values = get_global_dofs(solid);
+		/// auto solid_dof_coordinates = get_global_dof_coordinates(solid);
+		/// auto solid_values = get_global_dofs(solid);
+		std::vector<double> solid_dof_coordinates;
+		std::vector<double> solid_values;
+		std::vector<double> weights;
+		get_gauss_rule(solid, solid_dof_coordinates, solid_values, weights);
 
 		/// interpolates solid values into fluid mesh.
 		/// the returned fluid_values is the dofs of fluid function.
-		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, solid_dof_coordinates);
+		auto fluid_values = solid_to_fluid_raw(fluid, solid_values, solid_dof_coordinates, weights);
 
 		/// assemble fluid_values into a function.
 		auto local_size = fluid.vector()->local_size();
@@ -199,46 +242,43 @@ public:
 		fluid.vector()->apply("insert");
 	}
 
-	///
-	std::vector<double> solid_to_fluid_raw(Function &fluid, std::vector<double> &solid_values,
-										   std::vector<std::array<double, 2>> &solid_coordinates)
+	std::vector<double> solid_to_fluid_raw(
+		Function &fluid,
+		std::vector<double> &solid_values,
+		std::vector<double> &solid_coordinates,
+		std::vector<double> &weights)
 	{
 		/// smart shortcut
-		std::cout << "interpolate solid to fluid now." << std::endl;
 		auto rank = dolfin::MPI::rank(fluid.function_space()->mesh()->mpi_comm());
 		auto mesh = fluid.function_space()->mesh();		// pointer to a mesh
 		auto dofmap = fluid.function_space()->dofmap(); // pointer to a dofmap
-
-		/// Get local to global dofmap
-		std::vector<size_t> local_to_global;
-		dofmap->tabulate_local_to_global_dofs(local_to_global);
-
-		auto offset = fluid.vector()->local_range().first;
+		auto hmax = mesh->hmax();
 
 		/// get the element of function space
 		auto element = fluid.function_space()->element();
 		auto value_size = fluid.value_size();
 		auto global_fluid_size = fluid.function_space()->dim();
 
+		/// Get local to global dofmap
+		std::vector<size_t> local_to_global;
+		dofmap->tabulate_local_to_global_dofs(local_to_global);
+
 		/// initial local fluid values.
 		std::vector<double> local_fluid_values(global_fluid_size);
 
-		/// iterate every body coordinate.
+		/// iterate every solid_values coordinate.
 		for (size_t i = 0; i < solid_values.size() / value_size; i++)
 		{
 
 			/// get indices of adjacent cells on fluid mesh.
-			Point solid_point(solid_coordinates[i][0], solid_coordinates[i][1]);
+			Point solid_point(solid_coordinates[2 * i], solid_coordinates[2 * i + 1]);
 			auto adjacents = um.get_adjacents(solid_point);
 
-			/// iterate adjacent cells.
+			/// iterate adjacent cells and collect element nodes in these cells.
+			std::map<size_t, double> indices_to_delta;
 			for (size_t j = 0; j < adjacents.size(); j++)
 			{
-				/// 1. get dofmap of the cell.
-				/// 2. get the coordinates of the cell.
-
-				/// step 1
-				/// get the cell
+				/// step 1 : get coordinates of the cell
 				Cell cell(*mesh, adjacents[j]);
 				/// get the coordinate_dofs of the cell
 				std::vector<double> coordinate_dofs;
@@ -247,23 +287,29 @@ public:
 				boost::multi_array<double, 2> coordinates;
 				element->tabulate_dof_coordinates(coordinates, coordinate_dofs, cell);
 
-				/// step 2
-				/// local index of cell is needed rather than global index.
+				/// step 2 : get the dof map
 				auto cell_dofmap = dofmap->cell_dofs(cell.index());
 
-				/// iterate coordinates on cell.
+				/// iterate node coordinates of the cell.
 				for (size_t k = 0; k < cell_dofmap.size() / value_size; k++)
 				{
 					Point cell_point(coordinates[k][0], coordinates[k][1]);
-					double param = delta(solid_point, cell_point, side_lengths[0]);
-					for (size_t l = 0; l < value_size; l++)
+					double param = delta(solid_point, cell_point, hmax);
+					if (cell_dofmap[k] < fluid.vector()->local_size() && param > 0)
 					{
-						local_fluid_values[local_to_global[cell_dofmap[k] + l]] += solid_values[i * value_size + l] * param * side_lengths[0] * side_lengths[1];
+						indices_to_delta[cell_dofmap[k]] = param;
 					}
-
-				} // end loop inside the cell
+				}
 			}
-			// end adjacents loop
+
+			/// delta distribution.
+			for (auto it = indices_to_delta.begin(); it != indices_to_delta.end(); it++)
+			{
+				for (size_t l = 0; l < value_size; l++)
+				{
+					local_fluid_values[local_to_global[it->first + l]] += solid_values[i * value_size + l] * it->second * weights[i];
+				}
+			}
 		}
 
 		//////////////////  TODO : this part can use MPI_reduce directly  //////////////////////
@@ -280,9 +326,9 @@ public:
 		return fluid_values;
 	}
 
-	////////////////////////////////////////////
-	// thses methods must not be modified!!  ///
-	////////////////////////////////////////////
+	/////////////////////////////////////////////
+	//  thses methods must not be modified!!  ///
+	/////////////////////////////////////////////
 	double phi(double r)
 	{
 		r = fabs(r);
@@ -301,7 +347,7 @@ public:
 		}
 		return ret;
 	}
-	////////////////////////////////////////////
-	// thses methods must not be modified!!  ///
-	////////////////////////////////////////////
+	/////////////////////////////////////////////
+	//  thses methods must not be modified!!  ///
+	/////////////////////////////////////////////
 };
